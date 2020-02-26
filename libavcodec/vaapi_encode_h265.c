@@ -880,6 +880,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
     VAEncPictureParameterBufferHEVC  *vpic = pic->codec_picture_params;
     VAEncSliceParameterBufferHEVC  *vslice = slice->codec_slice_params;
     int i;
+    int low_delay_b = 1; // test for low delay B.
 
     sh->nal_unit_header = (H265RawNALUnitHeader) {
         .nal_unit_type         = hpic->slice_nal_unit,
@@ -892,7 +893,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
     sh->first_slice_segment_in_pic_flag = slice->index == 0;
     sh->slice_segment_address           = slice->block_start;
 
-    sh->slice_type = hpic->slice_type;
+    sh->slice_type =  ((hpic->slice_type == HEVC_SLICE_P) && low_delay_b) ? HEVC_SLICE_B : hpic->slice_type;
 
     sh->slice_pic_order_cnt_lsb = hpic->pic_order_cnt &
         (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) - 1;
@@ -1005,7 +1006,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
         .slice_pic_parameter_set_id = sh->slice_pic_parameter_set_id,
 
         .num_ref_idx_l0_active_minus1 = sh->num_ref_idx_l0_active_minus1,
-        .num_ref_idx_l1_active_minus1 = sh->num_ref_idx_l1_active_minus1,
+        .num_ref_idx_l1_active_minus1 = ((hpic->slice_type == HEVC_SLICE_P) && low_delay_b) ? sh->num_ref_idx_l0_active_minus1 : sh->num_ref_idx_l1_active_minus1,
 
         .luma_log2_weight_denom         = sh->luma_log2_weight_denom,
         .delta_chroma_log2_weight_denom = sh->delta_chroma_log2_weight_denom,
@@ -1052,6 +1053,8 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
         av_assert0(pic->type == PICTURE_TYPE_P ||
                    pic->type == PICTURE_TYPE_B);
         vslice->ref_pic_list0[0] = vpic->reference_frames[0];
+        if ((pic->type== PICTURE_TYPE_P) && low_delay_b)
+           vslice->ref_pic_list1[0] = vpic->reference_frames[0];
     }
     if (pic->nb_refs >= 2) {
         // Forward reference for B-frame.
