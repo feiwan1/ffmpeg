@@ -1191,6 +1191,9 @@ static const VAAPIEncodeRTFormat vaapi_encode_rt_formats[] = {
 #if VA_CHECK_VERSION(0, 38, 1)
     { "YUV420_10", VA_RT_FORMAT_YUV420_10BPP, 10, 3, 1, 1 },
 #endif
+#if VA_CHECK_VERSION(1, 2, 0)
+    { "YUV420_12", VA_RT_FORMAT_YUV420_12, 12, 3, 1, 1 },
+#endif
 };
 
 static const VAEntrypoint vaapi_encode_entrypoints_normal[] = {

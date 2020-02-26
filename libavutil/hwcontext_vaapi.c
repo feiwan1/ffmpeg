@@ -126,6 +126,10 @@ static const VAAPIFormatDescriptor vaapi_format_map[] = {
 #ifdef VA_FOURCC_P010
     MAP(P010, YUV420_10BPP, P010, 0),
 #endif
+#ifdef VA_FOURCC_P016
+    MAP(P016, YUV420_12, P012LE, 0), // AV_PIX_FMT_P012LE
+#endif
+
     MAP(BGRA, RGB32,   BGRA, 0),
     MAP(BGRX, RGB32,   BGR0, 0),
     MAP(RGBA, RGB32,   RGBA, 0),
