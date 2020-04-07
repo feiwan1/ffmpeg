@@ -1845,6 +1845,30 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
         ref_l1 = attr.value >> 16 & 0xffff;
     }
 
+    ctx->p_to_gpb = 0;
+
+#if VA_CHECK_VERSION(1, 9, 0)
+    attr = (VAConfigAttrib) { VAConfigAttribPredictionDirection };
+    vas = vaGetConfigAttributes(ctx->hwctx->display,
+                                ctx->va_profile,
+                                ctx->va_entrypoint,
+                                &attr, 1);
+    if (vas != VA_STATUS_SUCCESS) {
+        av_log(avctx, AV_LOG_WARNING, "Failed to query prediction direction "
+               "attribute: %d (%s).\n", vas, vaErrorStr(vas));
+    } else if (attr.value == VA_ATTRIB_NOT_SUPPORTED) {
+        av_log(avctx, AV_LOG_VERBOSE, "Driver does not report whether "
+               "support GPB, use regular P frames.\n");
+    } else {
+        if (attr.value & VA_PREDICTION_DIRECTION_BI_NOT_EMPTY) {
+            ctx->p_to_gpb = 1;
+            av_log(avctx, AV_LOG_VERBOSE, "Use GPB B frames to replace "
+                   "regular P frames.\n");
+        } else
+            av_log(avctx, AV_LOG_VERBOSE, "Use regular P frames.\n");
+    }
+#endif
+
     if (ctx->codec->flags & FLAG_INTRA_ONLY ||
         avctx->gop_size <= 1) {
         av_log(avctx, AV_LOG_VERBOSE, "Using intra frames only.\n");
@@ -1861,8 +1885,13 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
         ctx->p_per_i  = INT_MAX;
         ctx->b_per_p  = 0;
     } else {
-        av_log(avctx, AV_LOG_VERBOSE, "Using intra, P- and B-frames "
-               "(supported references: %d / %d).\n", ref_l0, ref_l1);
+       if (ctx->p_to_gpb)
+           av_log(avctx, AV_LOG_VERBOSE, "Using intra, GPB-B-frames and "
+                  "B-frames (supported references: %d / %d).\n",
+                  ref_l0, ref_l1);
+       else
+           av_log(avctx, AV_LOG_VERBOSE, "Using intra, P- and B-frames "
+                  "(supported references: %d / %d).\n", ref_l0, ref_l1);
         ctx->gop_size = avctx->gop_size;
         ctx->p_per_i  = INT_MAX;
         ctx->b_per_p  = avctx->max_b_frames;
