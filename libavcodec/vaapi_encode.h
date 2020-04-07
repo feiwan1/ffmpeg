@@ -341,6 +341,7 @@ typedef struct VAAPIEncodeContext {
     int idr_counter;
     int gop_counter;
     int end_of_stream;
+    int b_frame_strategy;
     uint8_t *delta_qp;
 
     // Whether the driver supports ROI at all.
