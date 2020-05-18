@@ -204,7 +204,9 @@ enum AVPixelFormat ff_qsv_map_fourcc(uint32_t fourcc)
     case MFX_FOURCC_RGB4: return AV_PIX_FMT_BGRA;
 #if CONFIG_VAAPI
     case MFX_FOURCC_YUY2: return AV_PIX_FMT_YUYV422;
+    case MFX_FOURCC_AYUV: return AV_PIX_FMT_0YUV;
     case MFX_FOURCC_Y210: return AV_PIX_FMT_Y210;
+    case MFX_FOURCC_Y410: return AV_PIX_FMT_Y410;
 #endif
     }
     return AV_PIX_FMT_NONE;
@@ -233,10 +235,18 @@ int ff_qsv_map_pixfmt(enum AVPixelFormat format, uint32_t *fourcc)
     case AV_PIX_FMT_YUYV422:
         *fourcc = MFX_FOURCC_YUY2;
         return AV_PIX_FMT_YUYV422;
+    case AV_PIX_FMT_0YUV:
+    case AV_PIX_FMT_YUV444P:
+        *fourcc = MFX_FOURCC_AYUV;
+        return AV_PIX_FMT_0YUV;
     case AV_PIX_FMT_YUV422P10:
     case AV_PIX_FMT_Y210:
         *fourcc = MFX_FOURCC_Y210;
         return AV_PIX_FMT_Y210;
+    case AV_PIX_FMT_Y410:
+    case AV_PIX_FMT_YUV444P10:
+        *fourcc = MFX_FOURCC_Y410;
+        return AV_PIX_FMT_Y410;
 #endif
     default:
         return AVERROR(ENOSYS);
@@ -271,6 +281,18 @@ int ff_qsv_map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
         surface->Data.U16 = (mfxU16 *)frame->data[0] + 1;
         surface->Data.V16 = (mfxU16 *)frame->data[0] + 3;
         break;
+
+    case AV_PIX_FMT_0YUV:
+        surface->Data.V = frame->data[0];
+        surface->Data.U = frame->data[0] + 1;
+        surface->Data.Y = frame->data[0] + 2;
+        surface->Data.A = frame->data[0] + 3;
+        break;
+
+    case AV_PIX_FMT_Y410:
+        surface->Data.U = frame->data[0];
+        break;
+
     default:
         return AVERROR(ENOSYS);
     }
