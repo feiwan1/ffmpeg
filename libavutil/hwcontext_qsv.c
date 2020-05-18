@@ -123,6 +123,8 @@ static const struct {
     // the SDK only delares support for AYUV
     { AV_PIX_FMT_VUYX,
                        MFX_FOURCC_AYUV, 0 },
+    { AV_PIX_FMT_XV30,
+                       MFX_FOURCC_Y410, 0 },
 #endif
 };
 
@@ -1523,6 +1525,9 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
         // Only set Data.A to a valid address, the SDK doesn't
         // use the value from the frame.
         surface->Data.A = frame->data[0] + 3;
+        break;
+    case AV_PIX_FMT_XV30:
+        surface->Data.U = frame->data[0];
         break;
 #endif
     default:
