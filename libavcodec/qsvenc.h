@@ -44,7 +44,15 @@
 #else
 #define QSV_HAVE_AVBR   0
 #define QSV_HAVE_VCM    0
-#define QSV_HAVE_MF     1
+#define QSV_HAVE_QVBR   QSV_VERSION_ATLEAST(1, 28)
+#define QSV_HAVE_MF     QSV_VERSION_ATLEAST(1, 25) && !QSV_ONEVPL
+#endif
+
+#if !QSV_HAVE_LA_DS
+#define MFX_LOOKAHEAD_DS_UNKNOWN 0
+#define MFX_LOOKAHEAD_DS_OFF 0
+#define MFX_LOOKAHEAD_DS_2x 0
+#define MFX_LOOKAHEAD_DS_4x 0
 #endif
 
 #define QSV_COMMON_OPTS \
