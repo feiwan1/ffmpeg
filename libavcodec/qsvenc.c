@@ -141,9 +141,11 @@ static const struct {
 #if QSV_HAVE_VCM
     { MFX_RATECONTROL_VCM,     "VCM" },
 #endif
+#if QSV_VERSION_ATLEAST(1, 10) && !QSV_ONEVPL
     { MFX_RATECONTROL_LA_EXT,  "LA_EXT" },
     { MFX_RATECONTROL_LA_HRD,  "LA_HRD" },
     { MFX_RATECONTROL_QVBR,    "QVBR" },
+#endif
 };
 
 #define UPDATE_PARAM(a, b)  \
