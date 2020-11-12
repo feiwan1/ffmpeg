@@ -184,6 +184,12 @@ enum AVFrameSideDataType {
      * Encoding parameters for a video frame, as described by AVVideoEncParams.
      */
     AV_FRAME_DATA_VIDEO_ENC_PARAMS,
+
+    /**
+     * Film grain parameters for a frame, described by AVFilmGrainParameters.
+     * Must be present for every frame which should have film grain applied.
+     */
+    AV_FRAME_DATA_FILM_GRAIN_PARAMS,
 };
 
 enum AVActiveFormatDescription {
