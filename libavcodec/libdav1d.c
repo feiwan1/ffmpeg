@@ -364,7 +364,6 @@ FF_ENABLE_DEPRECATION_WARNINGS
         light->MaxCLL = p->content_light->max_content_light_level;
         light->MaxFALL = p->content_light->max_frame_average_light_level;
     }
-
     res = 0;
 fail:
     dav1d_picture_unref(p);
