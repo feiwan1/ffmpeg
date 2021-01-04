@@ -544,6 +544,11 @@ static void d3d11va_device_uninit(AVHWDeviceContext *hwdev)
     }
 }
 
+static void d3d11va_device_free(AVHWDeviceContext *ctx)
+{
+    AVD3D11VADeviceContext *hwctx = ctx->hwctx;
+}
+
 static int d3d11va_device_create(AVHWDeviceContext *ctx, const char *device,
                                  AVDictionary *opts, int flags)
 {
@@ -555,6 +560,8 @@ static int d3d11va_device_create(AVHWDeviceContext *ctx, const char *device,
     UINT creationFlags = D3D11_CREATE_DEVICE_VIDEO_SUPPORT;
     int is_debug       = !!av_dict_get(opts, "debug", NULL, 0);
     int ret;
+
+    ctx->free = d3d11va_device_free;
 
     // (On UWP we can't check this.)
 #if !HAVE_UWP
