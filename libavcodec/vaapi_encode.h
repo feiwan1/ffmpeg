@@ -132,6 +132,12 @@ typedef struct VAAPIEncodePicture {
 
     int          nb_slices;
     VAAPIEncodeSlice *slices;
+
+    /** flag to indicate if the coded frame data need to be cached. */
+    int cache_coded_frame;
+
+    void *tail_data;
+    size_t tail_size;
 } VAAPIEncodePicture;
 
 typedef struct VAAPIEncodeProfile {
@@ -158,6 +164,12 @@ enum {
     RC_MODE_QVBR,
     RC_MODE_AVBR,
     RC_MODE_MAX = RC_MODE_AVBR,
+};
+
+enum {
+    CODED_FRAME_NONE,
+    CODED_FRAME_COMPLETED,
+    CODED_FRAME_MERGE_TO_NEXT,
 };
 
 typedef struct VAAPIEncodeRCMode {
@@ -308,6 +320,7 @@ typedef struct VAAPIEncodeContext {
 
     // Timestamp handling.
     int64_t         first_pts;
+    int64_t         av1_pts_diff;
     int64_t         dts_pts_diff;
     int64_t         ts_ring[MAX_REORDER_DELAY * 3 +
                             MAX_ASYNC_DEPTH];
@@ -358,6 +371,11 @@ typedef struct VAAPIEncodeContext {
     // If the driver does not support ROI then warn the first time we
     // encounter a frame with ROI side data.
     int             roi_warned;
+
+    /** coded frame data need to deal with next frame's data */
+    void  *coded_frame_data;
+    size_t coded_frame_size;
+    int    coded_frame_type;
 
     AVFrame         *frame;
 
@@ -463,6 +481,7 @@ int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt);
 int ff_vaapi_encode_init(AVCodecContext *avctx);
 int ff_vaapi_encode_close(AVCodecContext *avctx);
 
+int ff_vaapi_encode_get_attributs(AVCodecContext *avctx, VAConfigAttrib *attr);
 
 #define VAAPI_ENCODE_COMMON_OPTIONS \
     { "low_power", \

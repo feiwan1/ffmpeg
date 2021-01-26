@@ -435,6 +435,14 @@ typedef struct CodedBitstreamAV1Context {
     uint8_t     *frame_header;
     size_t       frame_header_size;
 
+    int frame_header_start_position;
+    int frame_header_data_offset;
+    int qindex_offset;
+    int segmentation_offset;
+    int loopfilter_offset;
+    int cdef_start_offset;
+    int cdef_end_offset;
+
     int temporal_id;
     int spatial_id;
     int operating_point_idc;

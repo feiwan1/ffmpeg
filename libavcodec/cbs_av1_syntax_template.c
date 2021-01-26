@@ -700,6 +700,12 @@ static int FUNC(quantization_params)(CodedBitstreamContext *ctx, RWContext *rw,
     const AV1RawSequenceHeader *seq = priv->sequence_header;
     int err;
 
+#ifdef READ
+    priv->qindex_offset = get_bits_count(rw);
+#else
+    priv->qindex_offset = put_bits_count(rw);
+#endif
+
     fb(8, base_q_idx);
 
     delta_q(delta_q_y_dc);
@@ -749,6 +755,12 @@ static int FUNC(segmentation_params)(CodedBitstreamContext *ctx, RWContext *rw,
     static const uint8_t default_feature_enabled[AV1_SEG_LVL_MAX] = { 0 };
     static const int16_t default_feature_value[AV1_SEG_LVL_MAX] = { 0 };
     int i, j, err;
+
+#ifdef READ
+    priv->segmentation_offset = get_bits_count(rw);
+#else
+    priv->segmentation_offset = put_bits_count(rw);
+#endif
 
     flag(segmentation_enabled);
 
@@ -877,6 +889,12 @@ static int FUNC(loop_filter_params)(CodedBitstreamContext *ctx, RWContext *rw,
         return 0;
     }
 
+#ifdef READ
+    priv->loopfilter_offset = get_bits_count(rw);
+#else
+    priv->loopfilter_offset = put_bits_count(rw);
+#endif
+
     fb(6, loop_filter_level[0]);
     fb(6, loop_filter_level[1]);
 
@@ -954,6 +972,12 @@ static int FUNC(cdef_params)(CodedBitstreamContext *ctx, RWContext *rw,
         return 0;
     }
 
+#ifdef READ
+    priv->cdef_start_offset = get_bits_count(rw);
+#else
+    priv->cdef_start_offset = put_bits_count(rw);
+#endif
+
     fb(2, cdef_damping_minus_3);
     fb(2, cdef_bits);
 
@@ -966,6 +990,12 @@ static int FUNC(cdef_params)(CodedBitstreamContext *ctx, RWContext *rw,
             fbs(2, cdef_uv_sec_strength[i], 1, i);
         }
     }
+
+#ifdef READ
+    priv->cdef_end_offset = get_bits_count(rw);
+#else
+    priv->cdef_end_offset = put_bits_count(rw);
+#endif
 
     return 0;
 }
@@ -1721,6 +1751,7 @@ static int FUNC(frame_header_obu)(CodedBitstreamContext *ctx, RWContext *rw,
         start_pos = put_bits_count(rw);
 #endif
 
+        priv->frame_header_start_position = start_pos;
         CHECK(FUNC(uncompressed_header)(ctx, rw, current));
 
         priv->tile_num = 0;

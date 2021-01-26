@@ -1196,6 +1196,9 @@ static int cbs_av1_write_obu(CodedBitstreamContext *ctx,
     flush_put_bits(pbc);
     av_assert0(data_pos <= start_pos);
 
+    if (obu->header.obu_type == AV1_OBU_FRAME_HEADER)
+        priv->frame_header_data_offset = data_pos * 8;
+
     if (8 * obu->obu_size > put_bits_left(pbc))
         return AVERROR(ENOSPC);
 
@@ -1204,7 +1207,7 @@ static int cbs_av1_write_obu(CodedBitstreamContext *ctx,
                 pbc->buf + start_pos, header_size);
         skip_put_bytes(pbc, header_size);
 
-        if (td) {
+        if (td && td->data) {
             memcpy(pbc->buf + data_pos + header_size,
                    td->data, td->data_size);
             skip_put_bytes(pbc, td->data_size);
