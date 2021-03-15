@@ -73,10 +73,12 @@ static int test_derivation(AVBufferRef *src_ref, const char *src_name)
         }
 
         if (back_ref->data != src_ref->data) {
+	  if (!(derived_type == AV_HWDEVICE_TYPE_VAAPI && src_dev->type == AV_HWDEVICE_TYPE_QSV)) {
             fprintf(stderr, "Derivation %s to %s succeeded, but derivation "
                     "back again did not return the original device.\n",
                    src_name, derived_name);
             goto fail;
+	  }
         }
 
         fprintf(stderr, "Successfully tested derivation %s -> %s.\n",
