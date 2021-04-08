@@ -803,6 +803,7 @@ extern const AVCodec ff_libaom_av1_decoder;
 extern const AVCodec ff_av1_decoder;
 extern const AVCodec ff_av1_cuvid_decoder;
 extern const AVCodec ff_av1_qsv_decoder;
+extern const AVCodec ff_av1_qsv_encoder;
 extern const AVCodec ff_libopenh264_encoder;
 extern const AVCodec ff_libopenh264_decoder;
 extern const AVCodec ff_h264_amf_encoder;

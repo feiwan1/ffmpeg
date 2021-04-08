@@ -818,9 +818,16 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
     case MFX_RATECONTROL_CQP:
         quant = avctx->global_quality / FF_QP2LAMBDA;
 
-        q->param.mfx.QPI = av_clip(quant * fabs(avctx->i_quant_factor) + avctx->i_quant_offset, 0, 51);
-        q->param.mfx.QPP = av_clip(quant, 0, 51);
-        q->param.mfx.QPB = av_clip(quant * fabs(avctx->b_quant_factor) + avctx->b_quant_offset, 0, 51);
+        if (avctx->codec_id == AV_CODEC_ID_AV1) {
+            q->param.mfx.QPI = av_clip(quant * fabs(avctx->i_quant_factor) + avctx->i_quant_offset, 0, 255);
+            q->param.mfx.QPP = av_clip(quant, 0, 255);
+            q->param.mfx.QPB = av_clip(quant * fabs(avctx->b_quant_factor) + avctx->b_quant_offset, 0, 255);
+        } else {
+            q->param.mfx.QPI = av_clip(quant * fabs(avctx->i_quant_factor) + avctx->i_quant_offset, 0, 51);
+            q->param.mfx.QPP = av_clip(quant, 0, 51);
+            q->param.mfx.QPB = av_clip(quant * fabs(avctx->b_quant_factor) + avctx->b_quant_offset, 0, 51);
+        }
+
 
         break;
 #if QSV_HAVE_AVBR
@@ -1034,6 +1041,21 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
     }
 #endif
 
+#if QSV_HAVE_EXT_AV1_PARAM
+    if (avctx->codec_id == AV_CODEC_ID_AV1) {
+        q->extav1tileparam.Header.BufferId = MFX_EXTBUFF_AV1_TILE_PARAM;
+        q->extav1tileparam.Header.BufferSz = sizeof(q->extav1tileparam);
+        q->extav1tileparam.NumTileColumns  = q->tile_cols;
+        q->extav1tileparam.NumTileRows     = q->tile_rows;
+        q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->extav1tileparam;
+
+        q->extav1bsparam.Header.BufferId = MFX_EXTBUFF_AV1_BITSTREAM_PARAM;
+        q->extav1bsparam.Header.BufferSz = sizeof(q->extav1bsparam);
+        q->extav1bsparam.WriteIVFHeaders = MFX_CODINGOPTION_OFF;
+        q->extparam_internal[q->nb_extparam_internal++] = (mfxExtBuffer *)&q->extav1bsparam;
+    }
+#endif
+
 #if QSV_HAVE_EXT_HEVC_TILES
     if (avctx->codec_id == AV_CODEC_ID_HEVC) {
         q->exthevctiles.Header.BufferId = MFX_EXTBUFF_HEVC_TILES;
@@ -1153,6 +1175,77 @@ static int qsv_retrieve_enc_vp9_params(AVCodecContext *avctx, QSVEncContext *q)
     q->packet_size = q->param.mfx.BufferSizeInKB * q->param.mfx.BRCParamMultiplier * 1000;
 
     dump_video_vp9_param(avctx, q, ext_buffers);
+
+    return 0;
+}
+
+static int qsv_retrieve_enc_av1_params(AVCodecContext *avctx, QSVEncContext *q)
+{
+    int ret = 0;
+#if QSV_HAVE_EXT_AV1_PARAM
+    mfxExtAV1TileParam av1_extend_tile_buf = {
+         .Header.BufferId = MFX_EXTBUFF_AV1_TILE_PARAM,
+         .Header.BufferSz = sizeof(av1_extend_tile_buf),
+    };
+#endif
+
+#if QSV_HAVE_CO2
+    mfxExtCodingOption2 co2 = {
+        .Header.BufferId = MFX_EXTBUFF_CODING_OPTION2,
+        .Header.BufferSz = sizeof(co2),
+    };
+#endif
+
+#if QSV_HAVE_CO3
+    mfxExtCodingOption3 co3 = {
+        .Header.BufferId = MFX_EXTBUFF_CODING_OPTION3,
+        .Header.BufferSz = sizeof(co3),
+    };
+#endif
+
+    mfxExtBuffer *ext_buffers[] = {
+#if QSV_HAVE_EXT_AV1_PARAM
+        (mfxExtBuffer*)&av1_extend_tile_buf,
+#endif
+#if QSV_HAVE_CO2
+        (mfxExtBuffer*)&co2,
+#endif
+#if QSV_HAVE_CO3
+        (mfxExtBuffer*)&co3,
+#endif
+    };
+
+    q->param.ExtParam    = ext_buffers;
+    q->param.NumExtParam = FF_ARRAY_ELEMS(ext_buffers);
+
+    ret = MFXVideoENCODE_GetVideoParam(q->session, &q->param);
+    if (ret < 0)
+        return ff_qsv_print_error(avctx, ret,
+                                  "Error calling GetVideoParam");
+
+    q->packet_size = q->param.mfx.BufferSizeInKB * q->param.mfx.BRCParamMultiplier * 1000;
+
+    if (avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER) {
+        const AVBitStreamFilter *filter = av_bsf_get_by_name("extract_extradata");
+        int ret;
+
+        if (!filter) {
+            av_log(avctx, AV_LOG_ERROR, "extract_extradata bitstream filter "
+                   "not found. This is a bug, please report it.\n");
+            return AVERROR_BUG;
+        }
+        ret = av_bsf_alloc(filter, &q->bsf);
+        if (ret < 0)
+            return ret;
+
+        ret = avcodec_parameters_from_context(q->bsf->par_in, avctx);
+        if (ret < 0)
+           return ret;
+
+        ret = av_bsf_init(q->bsf);
+        if (ret < 0)
+           return ret;
+    }
 
     return 0;
 }
@@ -1514,6 +1607,9 @@ int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q)
         break;
     case AV_CODEC_ID_VP9:
         ret = qsv_retrieve_enc_vp9_params(avctx, q);
+        break;
+    case AV_CODEC_ID_AV1:
+        ret = qsv_retrieve_enc_av1_params(avctx, q);
         break;
     default:
         ret = qsv_retrieve_enc_params(avctx, q);
@@ -1966,6 +2062,22 @@ int ff_qsv_encode(AVCodecContext *avctx, QSVEncContext *q,
 
         av_packet_move_ref(pkt, &qpkt.pkt);
 
+        if (avctx->codec_id == AV_CODEC_ID_AV1 && avctx->flags & AV_CODEC_FLAG_GLOBAL_HEADER) {
+            ret = av_bsf_send_packet(q->bsf, pkt);
+            if (ret < 0) {
+                av_log(avctx, AV_LOG_ERROR, "extract_extradata filter "
+                    "failed to send input packet\n");
+                return ret;
+            }
+
+            ret = av_bsf_receive_packet(q->bsf, pkt);
+            if (ret < 0) {
+                av_log(avctx, AV_LOG_ERROR, "extract_extradata filter "
+                    "failed to receive output packet\n");
+                return ret;
+            }
+        }
+
         *got_packet = 1;
     }
 
@@ -2019,6 +2131,7 @@ int ff_qsv_enc_close(AVCodecContext *avctx, QSVEncContext *q)
 #endif
 
     av_freep(&q->extparam);
+    av_bsf_free(&q->bsf);
 
     return 0;
 }

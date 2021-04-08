@@ -46,6 +46,7 @@
 #define QSV_HAVE_EXT_HEVC_PARAM QSV_VERSION_ATLEAST(1, 15)
 #define QSV_HAVE_EXT_VP9_PARAM QSV_VERSION_ATLEAST(1, 26)
 #define QSV_HAVE_EXT_VP9_TILES QSV_VERSION_ATLEAST(1, 29)
+#define QSV_HAVE_EXT_AV1_PARAM QSV_VERSION_ATLEAST(2, 5)
 
 #define QSV_HAVE_TRELLIS QSV_VERSION_ATLEAST(1, 8)
 #define QSV_HAVE_MAX_SLICE_SIZE QSV_VERSION_ATLEAST(1, 9)
@@ -146,6 +147,10 @@ typedef struct QSVEncContext {
 #if QSV_HAVE_EXT_VP9_PARAM
     mfxExtVP9Param  extvp9param;
 #endif
+#if QSV_HAVE_EXT_AV1_PARAM
+    mfxExtAV1TileParam extav1tileparam;
+    mfxExtAV1BitstreamParam extav1bsparam;
+#endif
 
 #if QSV_HAVE_OPAQUE
     mfxExtOpaqueSurfaceAlloc opaque_alloc;
@@ -156,7 +161,7 @@ typedef struct QSVEncContext {
     mfxExtVideoSignalInfo extvsi;
 
     mfxExtBuffer  *extparam_internal[3 + QSV_HAVE_CO2 + QSV_HAVE_CO3 + (QSV_HAVE_MF * 2) +
-                                     QSV_HAVE_EXT_HEVC_PARAM];
+                                     QSV_HAVE_EXT_HEVC_PARAM + QSV_HAVE_EXT_AV1_PARAM*2];
     int         nb_extparam_internal;
 
     mfxExtBuffer **extparam;
@@ -224,6 +229,8 @@ typedef struct QSVEncContext {
     int forced_idr;
 
     int main10sp;
+
+    AVBSFContext *bsf;
 } QSVEncContext;
 
 int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
