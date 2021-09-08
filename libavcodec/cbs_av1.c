@@ -183,8 +183,9 @@ static int cbs_av1_write_leb128(CodedBitstreamContext *ctx, PutBitContext *pbc,
     int position, err, len, i;
     uint8_t byte;
 
-    len = (av_log2(value) + 7) / 7;
-
+    // TODO: Need remove this WA after VA-API provides obu size byte length interface.
+    //len = (av_log2(value) + 7) / 7;
+    len = 4;
     if (ctx->trace_enable)
         position = put_bits_count(pbc);
 
