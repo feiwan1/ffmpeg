@@ -1092,11 +1092,13 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
         if (avctx->profile == FF_PROFILE_HEVC_SCC) {
             sh->num_ref_idx_active_override_flag = 1;
             sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1 + 1;
+            sh->num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1 + 1;
+
         } else {
             sh->num_ref_idx_active_override_flag = 0;
             sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
+            sh->num_ref_idx_l0_active_minus1 = pps->num_ref_idx_l0_default_active_minus1;
         }
-        sh->num_ref_idx_l1_active_minus1 = pps->num_ref_idx_l1_default_active_minus1;
     }
 
     sh->slice_sao_luma_flag = sh->slice_sao_chroma_flag =
@@ -1117,9 +1119,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
         .slice_type                 = sh->slice_type,
         .slice_pic_parameter_set_id = sh->slice_pic_parameter_set_id,
 
-        .num_ref_idx_l0_active_minus1 = sh->num_ref_idx_active_override_flag ?
-                                        sh->num_ref_idx_l0_active_minus1 - 1 :
-                                        sh->num_ref_idx_l0_active_minus1,
+        .num_ref_idx_l0_active_minus1 = sh->num_ref_idx_l0_active_minus1,
         .num_ref_idx_l1_active_minus1 = sh->num_ref_idx_l1_active_minus1,
 
         .luma_log2_weight_denom         = sh->luma_log2_weight_denom,
@@ -1410,6 +1410,7 @@ static const AVOption vaapi_encode_h265_options[] = {
     { PROFILE("main",               FF_PROFILE_HEVC_MAIN) },
     { PROFILE("main10",             FF_PROFILE_HEVC_MAIN_10) },
     { PROFILE("rext",               FF_PROFILE_HEVC_REXT) },
+    { PROFILE("scc",                FF_PROFILE_HEVC_SCC) },
 #undef PROFILE
 
     { "tier", "Set tier (general_tier_flag)",
