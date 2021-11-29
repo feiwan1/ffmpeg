@@ -133,7 +133,6 @@ static const struct {
     { AV_PIX_FMT_XV36,
                        MFX_FOURCC_Y416, 1 },
 #endif
-#endif
 };
 
 extern int ff_qsv_get_surface_base_handle(mfxFrameSurface1 *surf,
@@ -1515,7 +1514,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
         surface->Data.R = frame->data[0] + 2;
         surface->Data.A = frame->data[0] + 3;
         break;
-#if CONFIG_VAAPI
     case AV_PIX_FMT_YUYV422:
         surface->Data.Y = frame->data[0];
         surface->Data.U = frame->data[0] + 1;
@@ -1545,7 +1543,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
         surface->Data.V = frame->data[0] + 2;
         surface->Data.A = frame->data[0] + 3;
         break;
-#endif
     default:
         return MFX_ERR_UNSUPPORTED;
     }
