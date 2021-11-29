@@ -115,7 +115,6 @@ static const struct {
     { AV_PIX_FMT_BGRA, MFX_FOURCC_RGB4 },
     { AV_PIX_FMT_P010, MFX_FOURCC_P010 },
     { AV_PIX_FMT_PAL8, MFX_FOURCC_P8   },
-#if CONFIG_VAAPI
     { AV_PIX_FMT_YUYV422,
                        MFX_FOURCC_YUY2 },
 #if QSV_VERSION_ATLEAST(1, 17)
@@ -135,7 +134,6 @@ static const struct {
                        MFX_FOURCC_Y216 },
     { AV_PIX_FMT_Y412,
                        MFX_FOURCC_Y416 },
-#endif
 #endif
 };
 
@@ -1317,7 +1315,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
         surface->Data.R = frame->data[0] + 2;
         surface->Data.A = frame->data[0] + 3;
         break;
-#if CONFIG_VAAPI
     case AV_PIX_FMT_YUYV422:
         surface->Data.Y = frame->data[0];
         surface->Data.U = frame->data[0] + 1;
@@ -1345,7 +1342,6 @@ static int map_frame_to_surface(const AVFrame *frame, mfxFrameSurface1 *surface)
         surface->Data.V = frame->data[0] + 2;
         surface->Data.A = frame->data[0] + 3;
         break;
-#endif
     default:
         return MFX_ERR_UNSUPPORTED;
     }
