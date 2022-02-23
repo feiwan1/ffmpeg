@@ -381,7 +381,7 @@ typedef struct VAAPIEncodeType {
     // which will be available when this function is called. If not set,
     // assume that all blocks are 16x16 and that surfaces should be
     // aligned to match this.
-    void (*get_encoder_caps)(AVCodecContext *avctx);
+    int (*get_encoder_caps)(AVCodecContext *avctx);
 
     // Perform any extra codec-specific configuration after the
     // codec context is initialised (set up the private data and

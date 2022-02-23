@@ -2445,7 +2445,9 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
         goto fail;
 
     if (ctx->codec->get_encoder_caps) {
-        ctx->codec->get_encoder_caps(avctx);
+        err = ctx->codec->get_encoder_caps(avctx);
+        if (err < 0)
+            goto fail;
     } else {
         // Assume 16x16 blocks.
         ctx->surface_width  = FFALIGN(avctx->width,  16);

@@ -434,7 +434,7 @@ static int vaapi_encode_mjpeg_init_slice_params(AVCodecContext *avctx,
     return 0;
 }
 
-static av_cold void vaapi_encode_mjpeg_get_encoder_caps(AVCodecContext *avctx)
+static av_cold int vaapi_encode_mjpeg_get_encoder_caps(AVCodecContext *avctx)
 {
     VAAPIEncodeContext *ctx = avctx->priv_data;
     const AVPixFmtDescriptor *desc;
@@ -444,6 +444,8 @@ static av_cold void vaapi_encode_mjpeg_get_encoder_caps(AVCodecContext *avctx)
 
     ctx->surface_width  = FFALIGN(avctx->width,  8 << desc->log2_chroma_w);
     ctx->surface_height = FFALIGN(avctx->height, 8 << desc->log2_chroma_h);
+
+    return 0;
 }
 
 static av_cold int vaapi_encode_mjpeg_configure(AVCodecContext *avctx)

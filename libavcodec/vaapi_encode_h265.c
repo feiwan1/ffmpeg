@@ -1158,7 +1158,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
     return 0;
 }
 
-static av_cold void vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
+static av_cold int vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
 {
     VAAPIEncodeContext      *ctx = avctx->priv_data;
     VAAPIEncodeH265Context *priv = avctx->priv_data;
@@ -1175,6 +1175,7 @@ static av_cold void vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
         if (vas != VA_STATUS_SUCCESS) {
             av_log(avctx, AV_LOG_WARNING, "Failed to query encoder "
                    "features, using guessed defaults.\n");
+            return AVERROR_EXTERNAL;
         } else if (attr.value == VA_ATTRIB_NOT_SUPPORTED) {
             av_log(avctx, AV_LOG_WARNING, "Driver does not advertise "
                    "encoder features, using guessed defaults.\n");
@@ -1188,6 +1189,7 @@ static av_cold void vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
         if (vas != VA_STATUS_SUCCESS) {
             av_log(avctx, AV_LOG_WARNING, "Failed to query encoder "
                    "block size, using guessed defaults.\n");
+            return AVERROR_EXTERNAL;
         } else if (attr.value == VA_ATTRIB_NOT_SUPPORTED) {
             av_log(avctx, AV_LOG_WARNING, "Driver does not advertise "
                    "encoder block size, using guessed defaults.\n");
@@ -1215,7 +1217,7 @@ static av_cold void vaapi_encode_h265_get_encoder_caps(AVCodecContext *avctx)
 
     ctx->slice_block_width = ctx->slice_block_height = priv->ctu_size;
 
-    return;
+    return 0;
 }
 
 static av_cold int vaapi_encode_h265_configure(AVCodecContext *avctx)
