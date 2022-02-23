@@ -1007,6 +1007,13 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
         vaapi_encode_add_ref(avctx, pic, start,
                              pic->type == PICTURE_TYPE_P,
                              b_counter > 0, 0);
+
+        // set P frame's ref[0] and ref[1] as same if p_to_gpb.
+        if (ctx->p_to_gpb && (pic->type == PICTURE_TYPE_P)) {
+            vaapi_encode_add_ref(avctx, pic, start, 1, 0, 0);
+            pic->type = PICTURE_TYPE_B;
+        }
+                         
         vaapi_encode_add_ref(avctx, pic, ctx->next_prev, 0, 0, 1);
     }
     if (ctx->next_prev)
@@ -1860,10 +1867,10 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
         if (vas != VA_STATUS_SUCCESS) {
             av_log(avctx, AV_LOG_WARNING, "Failed to query prediction direction "
                    "attribute: %d (%s).\n", vas, vaErrorStr(vas));
+            return AVERROR_EXTERNAL;
         } else if (attr.value == VA_ATTRIB_NOT_SUPPORTED) {
             av_log(avctx, AV_LOG_VERBOSE, "Driver does not report any additional "
                    "prediction constraints.\n");
-            return AVERROR_EXTERNAL;
         } else {
             if (attr.value & VA_PREDICTION_DIRECTION_BI_NOT_EMPTY) {
                 ctx->p_to_gpb = 1;
