@@ -1827,6 +1827,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
     VAStatus vas;
     VAConfigAttrib attr = { VAConfigAttribEncMaxRefFrames };
     uint32_t ref_l0, ref_l1;
+    int prediction_pre_only;
 
     vas = vaGetConfigAttributes(ctx->hwctx->display,
                                 ctx->va_profile,
@@ -1846,26 +1847,36 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
     }
 
     ctx->p_to_gpb = 0;
+    prediction_pre_only = 0;
 
 #if VA_CHECK_VERSION(1, 9, 0)
-    attr = (VAConfigAttrib) { VAConfigAttribPredictionDirection };
-    vas = vaGetConfigAttributes(ctx->hwctx->display,
-                                ctx->va_profile,
-                                ctx->va_entrypoint,
-                                &attr, 1);
-    if (vas != VA_STATUS_SUCCESS) {
-        av_log(avctx, AV_LOG_WARNING, "Failed to query prediction direction "
-               "attribute: %d (%s).\n", vas, vaErrorStr(vas));
-    } else if (attr.value == VA_ATTRIB_NOT_SUPPORTED) {
-        av_log(avctx, AV_LOG_VERBOSE, "Driver does not report whether "
-               "support GPB, use regular P frames.\n");
-    } else {
-        if (attr.value & VA_PREDICTION_DIRECTION_BI_NOT_EMPTY) {
-            ctx->p_to_gpb = 1;
-            av_log(avctx, AV_LOG_VERBOSE, "Use GPB B frames to replace "
-                   "regular P frames.\n");
-        } else
-            av_log(avctx, AV_LOG_VERBOSE, "Use regular P frames.\n");
+    if (!(ctx->codec->flags & FLAG_INTRA_ONLY ||
+        avctx->gop_size <= 1)) {
+        attr = (VAConfigAttrib) { VAConfigAttribPredictionDirection };
+        vas = vaGetConfigAttributes(ctx->hwctx->display,
+                                    ctx->va_profile,
+                                    ctx->va_entrypoint,
+                                    &attr, 1);
+        if (vas != VA_STATUS_SUCCESS) {
+            av_log(avctx, AV_LOG_WARNING, "Failed to query prediction direction "
+                   "attribute: %d (%s).\n", vas, vaErrorStr(vas));
+        } else if (attr.value == VA_ATTRIB_NOT_SUPPORTED) {
+            av_log(avctx, AV_LOG_VERBOSE, "Driver does not report any additional "
+                   "prediction constraints.\n");
+            return AVERROR_EXTERNAL;
+        } else {
+            if (attr.value & VA_PREDICTION_DIRECTION_BI_NOT_EMPTY) {
+                ctx->p_to_gpb = 1;
+                av_log(avctx, AV_LOG_VERBOSE, "Driver does not support P-frames, "
+                       "replacing them with B-frames.\n");
+            }
+
+            if (!attr.value & VA_PREDICTION_DIRECTION_FUTURE) {
+                prediction_pre_only = 1;
+                av_log(avctx, AV_LOG_VERBOSE, "Driver support previous prediction "
+                       "only.\n");
+            }
+        }
     }
 #endif
 
@@ -1878,7 +1889,8 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
                "reference frames.\n");
         return AVERROR(EINVAL);
     } else if (!(ctx->codec->flags & FLAG_B_PICTURES) ||
-               ref_l1 < 1 || avctx->max_b_frames < 1) {
+               ref_l1 < 1 || avctx->max_b_frames < 1 ||
+               (prediction_pre_only && !ctx->p_to_gpb)) {
         av_log(avctx, AV_LOG_VERBOSE, "Using intra and P-frames "
                "(supported references: %d / %d).\n", ref_l0, ref_l1);
         ctx->gop_size = avctx->gop_size;
@@ -1886,8 +1898,8 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
         ctx->b_per_p  = 0;
     } else {
        if (ctx->p_to_gpb)
-           av_log(avctx, AV_LOG_VERBOSE, "Using intra, GPB-B-frames and "
-                  "B-frames (supported references: %d / %d).\n",
+           av_log(avctx, AV_LOG_VERBOSE, "Using intra and B-frames "
+                  "(supported references: %d / %d).\n",
                   ref_l0, ref_l1);
        else
            av_log(avctx, AV_LOG_VERBOSE, "Using intra, P- and B-frames "
