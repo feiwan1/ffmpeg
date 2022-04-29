@@ -39,6 +39,7 @@ typedef struct VAAPIDecodePictureHEVC {
     VAPictureParameterBufferHEVC pic_param;
     VASliceParameterBufferHEVC last_slice_param;
 #endif
+    VAProcPipelineParameterBuffer proc_param;
     const uint8_t *last_buffer;
     size_t         last_size;
 
@@ -131,6 +132,7 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
 
     const ScalingList *scaling_list = NULL;
     int pic_param_size, err, i;
+    AVFrameSideData *sd;
 
 #if VA_CHECK_VERSION(1, 2, 0)
     int num_comps, pre_palette_size;
@@ -330,6 +332,35 @@ static int vaapi_hevc_start_frame(AVCodecContext          *avctx,
         err = ff_vaapi_decode_make_param_buffer(avctx, &pic->pic,
                                                 VAIQMatrixBufferType,
                                                 &iq_matrix, sizeof(iq_matrix));
+        if (err < 0)
+            goto fail;
+    }
+
+    sd = av_frame_get_side_data(h->cur_frame->f, AV_FRAME_DATA_SUB_FRAME);
+    if (sd) {
+        VAProcPipelineParameterBuffer *proc_param = &pic->proc_param;
+        AVFrame *sub_frame = (AVFrame *)sd->data;
+
+        memset(proc_param, 0, sizeof(VAProcPipelineParameterBuffer));
+
+        pic->pic.sub_frame_src.x = pic->pic.sub_frame_src.y = 0;
+        pic->pic.sub_frame_src.width = sps->width;
+        pic->pic.sub_frame_src.height = sps->height;
+
+        pic->pic.sub_frame_dst.x = pic->pic.sub_frame_dst.y = 0;
+        pic->pic.sub_frame_dst.width = sub_frame->width;
+        pic->pic.sub_frame_dst.height = sub_frame->height;
+
+        pic->pic.sub_frame_surface = ff_vaapi_get_surface_id(sub_frame);
+        proc_param->surface = pic->pic.output_surface;
+        proc_param->surface_region = &pic->pic.sub_frame_src;
+        proc_param->output_region = &pic->pic.sub_frame_dst;
+        proc_param->additional_outputs = &pic->pic.sub_frame_surface;
+        proc_param->num_additional_outputs = 1;
+
+        err = ff_vaapi_decode_make_param_buffer(avctx, &pic->pic,
+                                                VAProcPipelineParameterBufferType,
+                                                &pic->proc_param, sizeof(VAProcPipelineParameterBuffer));
         if (err < 0)
             goto fail;
     }
