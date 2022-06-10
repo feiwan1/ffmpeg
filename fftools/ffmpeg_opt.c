@@ -1592,6 +1592,7 @@ static OutputStream *new_output_stream(OptionsContext *o, AVFormatContext *oc, e
         input_streams[source_index]->st->discard = input_streams[source_index]->user_set_discard;
     }
     ost->last_mux_dts = AV_NOPTS_VALUE;
+    ost->last_filter_pts = AV_NOPTS_VALUE;
 
     ost->muxing_queue = av_fifo_alloc(8 * sizeof(AVPacket));
     if (!ost->muxing_queue)
