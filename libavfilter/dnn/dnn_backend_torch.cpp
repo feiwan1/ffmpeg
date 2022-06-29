@@ -36,6 +36,8 @@ extern "C" {
 #include "safe_queue.h"
 }
 
+typedef enum {UNKNOWN_MODEL = -1, BASICVSR, FRVSR} ModelType;
+
 typedef struct THModel {
     DNNModel model;
     DnnContext *ctx;
@@ -43,6 +45,7 @@ typedef struct THModel {
     SafeQueue *request_queue;
     Queue *task_queue;
     Queue *lltask_queue;
+    ModelType model_type;
 } THModel;
 
 typedef struct THInferRequest {
@@ -210,9 +213,15 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
         avpriv_report_missing_feature(NULL, "model function type %d", th_model->model.func_type);
         break;
     }
-    *infer_request->input_tensor = torch::from_blob(input.data,
-        {1, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
-        deleter, torch::kFloat32);
+    if (th_model->model_type == FRVSR) {
+        *infer_request->input_tensor = torch::from_blob(input.data,
+            {1, 3, input.dims[height_idx], input.dims[width_idx]},
+            deleter, torch::kFloat32);
+    } else {
+        *infer_request->input_tensor = torch::from_blob(input.data,
+            {1, input.dims[channel_idx], input.dims[height_idx], input.dims[width_idx]},
+            deleter, torch::kFloat32);
+    }
     return 0;
 
 err:
@@ -256,7 +265,24 @@ static int th_start_inference(void *args)
         *infer_request->input_tensor = infer_request->input_tensor->to(device);
     inputs.push_back(*infer_request->input_tensor);
 
-    *infer_request->output = th_model->jit_model->forward(inputs).toTensor();
+    if (th_model->model_type == FRVSR) {
+        auto size = infer_request->input_tensor->sizes();
+        int height = size[2];
+        int width  = size[3];
+        torch::Tensor lr_prev = torch::zeros({1, 3, height, width}, torch::TensorOptions().dtype(torch::kFloat32)
+                                                                                          .device(device));
+        torch::Tensor hr_prev = torch::zeros({1, 3, height * 4, width * 4}, torch::TensorOptions().dtype(torch::kFloat32)
+                                                                                                  .device(device));
+        inputs.push_back(lr_prev);
+        inputs.push_back(hr_prev);
+    }
+
+    auto outputs = th_model->jit_model->forward(inputs);
+    if (th_model->model_type == FRVSR) {
+        *infer_request->output = outputs.toTuple()->elements()[0].toTensor();
+    } else {
+        *infer_request->output = outputs.toTensor();
+    }
 
     return 0;
 }
@@ -422,6 +448,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
     DNNModel *model = NULL;
     THModel *th_model = NULL;
     THRequestItem *item = NULL;
+    torch::jit::NameTensor first_param;
     const char *device_name = ctx->device ? ctx->device : "cpu";
 
     th_model = (THModel *)av_mallocz(sizeof(THModel));
@@ -450,6 +477,7 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
         av_log(ctx, AV_LOG_ERROR, "Failed to load torch model\n");
         goto fail;
     }
+    first_param = *th_model->jit_model->named_parameters().begin();
 
     th_model->request_queue = ff_safe_queue_create();
     if (!th_model->request_queue) {
@@ -478,6 +506,14 @@ static DNNModel *dnn_load_model_th(DnnContext *ctx, DNNFunctionType func_type, A
     th_model->task_queue = ff_queue_create();
     if (!th_model->task_queue) {
         goto fail;
+    }
+
+    if (!first_param.name.find("fnet")) {
+        th_model->model_type = FRVSR;
+    } else if (!first_param.name.find("spynet")) {
+        th_model->model_type = BASICVSR;
+    } else {
+        th_model->model_type = UNKNOWN_MODEL;
     }
 
     th_model->lltask_queue = ff_queue_create();
