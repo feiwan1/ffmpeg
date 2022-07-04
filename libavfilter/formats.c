@@ -352,6 +352,10 @@ static const AVFilterFormatsFilter filters_video[] = {
         .conversion_filter = "scale",
         .conversion_opts_offset = offsetof(AVFilterGraph, scale_sws_opts),
     },
+    {
+        .conversion_filter = "hwmap",
+        .conversion_opts_offset = 0,
+    }
 };
 
 static const AVFilterFormatsFilter filters_audio[] = {
