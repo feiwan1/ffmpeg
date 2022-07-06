@@ -212,6 +212,10 @@ static int vaapi_encode_av1_write_frame_header(AVCodecContext *avctx,
     start = put_bits_count(&pbc);
 
     /** uncompressed_header() */
+    if (sh->frame_id_numbers_present_flag)
+        id_len = sh->additional_frame_id_length_minus_1 +
+                 sh->delta_frame_id_length_minus_2 + 3;
+
     frame_is_intra = (fh->frame_type == AV1_FRAME_KEY ||
                       fh->frame_type == AV1_FRAME_INTRA_ONLY);
     if (!sh->reduced_still_picture_header) {
@@ -220,11 +224,9 @@ static int vaapi_encode_av1_write_frame_header(AVCodecContext *avctx,
             put_bits(&pbc, 3, fh->frame_to_show_map_idx);
             goto trailing_bits;
         }
-        if (sh->frame_id_numbers_present_flag) {
-            id_len = sh->additional_frame_id_length_minus_1 +
-                     sh->delta_frame_id_length_minus_2 + 3;
-            put_bits(&pbc, id_len, fh->frame_to_show_map_idx);
-        }
+        if (sh->frame_id_numbers_present_flag)
+            put_bits(&pbc, id_len, fh->display_frame_id);
+
         put_bits(&pbc, 2, fh->frame_type);
         put_bits(&pbc, 1, fh->show_frame);
         if (!fh->show_frame)
