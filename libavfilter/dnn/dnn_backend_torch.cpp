@@ -33,6 +33,7 @@ extern "C" {
 #include "libavutil/opt.h"
 #include "queue.h"
 #include "safe_queue.h"
+#include "libavutil/fifo.h"
 }
 
 typedef struct THOptions{
@@ -115,7 +116,7 @@ static int get_input_th(void *model, DNNData *input, const char *input_name)
     return 0;
 }
 
-static int get_output_th(void *model, const char *input_name, int input_width, int input_height,
+static int get_output_th(void *model, const char *input_name, int input_width, int input_height, int nb_input,
                                    const char *output_name, int *output_width, int *output_height)
 {
     int ret = 0;
@@ -126,6 +127,7 @@ static int get_output_th(void *model, const char *input_name, int input_width, i
     DNNExecBaseParams exec_params = {
         .input_name     = input_name,
         .output_names   = &output_name,
+        .nb_input       = nb_input,
         .nb_output      = 1,
         .in_frame       = NULL,
         .out_frame      = NULL,
@@ -328,7 +330,9 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
     THInferRequest *infer_request = NULL;
     DNNData input = { 0 };
     THContext *ctx = &th_model->ctx;
-    int ret;
+    AVFrame *tmp_frame = NULL;
+    int ret, offset = 0;;
+    void *in_data;
 
     lltask = (LastLevelTaskItem *)ff_queue_pop_front(th_model->lltask_queue);
     if (!lltask) {
@@ -346,9 +350,10 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
 
     input.height = task->in_frame->height;
     input.width = task->in_frame->width;
-    input.data = av_malloc(input.height * input.width * 3 * sizeof(float));
+    input.data = av_malloc(input.height * input.width * 3 * sizeof(float) * task->nb_input);
     if (!input.data)
         return AVERROR(ENOMEM);
+    in_data = input.data;
     infer_request->input_tensor = new torch::Tensor();
     infer_request->output = new torch::Tensor();
 
@@ -359,7 +364,15 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
             if (th_model->model->frame_pre_proc != NULL) {
                 th_model->model->frame_pre_proc(task->in_frame, &input, th_model->model->filter_ctx);
             } else {
-                ff_proc_from_frame_to_dnn(task->in_frame, &input, ctx);
+                int in_queue_nb = av_fifo_can_read(task->in_queue);
+                do {
+                    av_fifo_peek(task->in_queue, &tmp_frame, 1,
+                                 offset >= in_queue_nb ? in_queue_nb - 1 : offset);
+                    ff_proc_from_frame_to_dnn(tmp_frame, &input, ctx);
+                    input.data += input.height * input.width * 3 * sizeof(float);
+                    offset++;
+                } while (task->nb_input > offset);
+                input.data = in_data;
             }
         }
         break;
@@ -371,7 +384,7 @@ static int fill_model_input_th(THModel *th_model, THRequestItem *request)
         *infer_request->input_tensor = torch::from_blob(input.data, {1, 3, input.height, input.width},
                                                         deleter, torch::kFloat32);
     } else {
-        *infer_request->input_tensor = torch::from_blob(input.data, {1, 1, 3, input.height, input.width},
+        *infer_request->input_tensor = torch::from_blob(input.data, {1, task->nb_input, 3, input.height, input.width},
                                                         deleter, torch::kFloat32);
     }
     if (infer_request->input_tensor->device() != ctx->options.device_type)
@@ -441,6 +454,9 @@ static void infer_completion_callback(void *args) {
     THInferRequest *infer_request = request->infer_request;
     THModel *th_model = (THModel *)task->model;
     torch::Tensor *output = infer_request->output;
+    AVFrame *tmp_frame = NULL;
+    int ret, offset = 0;;
+    void *in_data;
 
     c10::IntArrayRef sizes = output->sizes();
     outputs.order = DCO_RGB;
@@ -466,7 +482,13 @@ static void infer_completion_callback(void *args) {
             if (th_model->model->frame_post_proc != NULL) {
                 th_model->model->frame_post_proc(task->out_frame, &outputs, th_model->model->filter_ctx);
             } else {
-                ff_proc_from_dnn_to_frame(task->out_frame, &outputs, &th_model->ctx);
+                do {
+                    av_fifo_peek(task->out_queue, &tmp_frame, 1, offset);
+                    ff_proc_from_dnn_to_frame(tmp_frame, &outputs, &th_model->ctx);
+                    outputs.data += outputs.height * outputs.width * 3 * sizeof(float);
+                    offset++;
+                } while (av_fifo_can_read(task->out_queue) > offset);
+                task->out_frame = NULL;
             }
         } else {
             task->out_frame->width = outputs.width;

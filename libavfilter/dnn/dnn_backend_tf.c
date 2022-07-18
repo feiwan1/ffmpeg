@@ -317,7 +317,7 @@ static int get_input_tf(void *model, DNNData *input, const char *input_name)
     return 0;
 }
 
-static int get_output_tf(void *model, const char *input_name, int input_width, int input_height,
+static int get_output_tf(void *model, const char *input_name, int input_width, int input_height, int nb_input,
                                    const char *output_name, int *output_width, int *output_height)
 {
     int ret;
