@@ -27,6 +27,7 @@
 #include "libavutil/pixdesc.h"
 #include "libavutil/avassert.h"
 #include "libavutil/imgutils.h"
+#include "libavutil/fifo.h"
 #include "filters.h"
 #include "dnn_filter_common.h"
 #include "internal.h"
