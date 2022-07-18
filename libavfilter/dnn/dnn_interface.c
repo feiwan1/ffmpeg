@@ -40,6 +40,8 @@ static const AVOption dnn_base_options[] = {
                 OFFSET(model_filename), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, FLAGS},
         {"input", "input name of the model",
                 OFFSET(model_inputname), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, FLAGS},
+        { "input_nb", "input number of the mode",
+                OFFSET(nb_inputs), AV_OPT_TYPE_INT, { .i64 = 1 }, 0, INT_MAX, FLAGS },
         {"output", "output name of the model",
                 OFFSET(model_outputnames_string), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, FLAGS},
         {"backend_configs", "backend configs (deprecated)",
