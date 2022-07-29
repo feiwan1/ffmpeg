@@ -20,6 +20,7 @@
 #define AVUTIL_HWCONTEXT_VAAPI_H
 
 #include "pixfmt.h"
+#include "buffer.h"
 #include <va/va.h>
 
 /**
@@ -113,6 +114,7 @@ typedef struct AVVAAPIFramesContext {
      */
     int sub_frame_width, sub_frame_height;
     enum AVPixelFormat sub_frame_sw_format;
+    AVBufferRef *sub_frames_ref;
 } AVVAAPIFramesContext;
 
 /**

@@ -1222,6 +1222,8 @@ static int vaapi_encode_check_frame(AVCodecContext *avctx,
 static int vaapi_encode_send_frame(AVCodecContext *avctx, AVFrame *frame)
 {
     VAAPIEncodeContext *ctx = avctx->priv_data;
+    AVFrameSideData *sd = NULL;
+    AVFrame *sub_frame = NULL;
     VAAPIEncodePicture *pic;
     int err;
 
@@ -1229,9 +1231,18 @@ static int vaapi_encode_send_frame(AVCodecContext *avctx, AVFrame *frame)
         av_log(avctx, AV_LOG_DEBUG, "Input frame: %ux%u (%"PRId64").\n",
                frame->width, frame->height, frame->pts);
 
-        err = vaapi_encode_check_frame(avctx, frame);
-        if (err < 0)
-            return err;
+        sd = av_frame_get_side_data(frame, AV_FRAME_DATA_SUB_FRAME);
+        if (sd) {
+            sub_frame = (AVFrame *)sd->data;
+
+            err = vaapi_encode_check_frame(avctx, sub_frame);
+            if (err < 0)
+                return err;
+        } else {
+            err = vaapi_encode_check_frame(avctx, frame);
+            if (err < 0)
+                return err;
+        }
 
         pic = vaapi_encode_alloc(avctx);
         if (!pic)
@@ -1246,7 +1257,8 @@ static int vaapi_encode_send_frame(AVCodecContext *avctx, AVFrame *frame)
         if (ctx->input_order == 0 || frame->pict_type == AV_PICTURE_TYPE_I)
             pic->force_idr = 1;
 
-        pic->input_surface = (VASurfaceID)(uintptr_t)frame->data[3];
+        pic->input_surface = sd ? (VASurfaceID)(uintptr_t)sub_frame->data[3] :
+                             (VASurfaceID)(uintptr_t)frame->data[3];
         pic->pts = frame->pts;
 
         av_frame_move_ref(pic->input_image, frame);
@@ -2648,6 +2660,8 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
 {
     VAAPIEncodeContext *ctx = avctx->priv_data;
     AVVAAPIFramesContext *recon_hwctx = NULL;
+    AVVAAPIFramesContext *avfc = NULL;
+    AVHWFramesContext *input_frames = NULL;
     VAStatus vas;
     int err;
 
@@ -2667,12 +2681,27 @@ av_cold int ff_vaapi_encode_init(AVCodecContext *avctx)
         return AVERROR(EINVAL);
     }
 
-    ctx->input_frames_ref = av_buffer_ref(avctx->hw_frames_ctx);
-    if (!ctx->input_frames_ref) {
-        err = AVERROR(ENOMEM);
-        goto fail;
+    input_frames = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
+    avfc = input_frames->hwctx;
+
+    if (avfc->enable_sub_frame) {
+        ctx->input_frames_ref = av_buffer_ref(avfc->sub_frames_ref);
+        if (!ctx->input_frames_ref) {
+            err = AVERROR(ENOMEM);
+            goto fail;
+        }
+
+        ctx->input_frames = (AVHWFramesContext*)ctx->input_frames_ref->data;
+        avctx->width = avfc->sub_frame_width;
+        avctx->height = avfc->sub_frame_height;
+    } else {
+        ctx->input_frames_ref = av_buffer_ref(avctx->hw_frames_ctx);
+        if (!ctx->input_frames_ref) {
+            err = AVERROR(ENOMEM);
+            goto fail;
+        }
+        ctx->input_frames = (AVHWFramesContext*)ctx->input_frames_ref->data;
     }
-    ctx->input_frames = (AVHWFramesContext*)ctx->input_frames_ref->data;
 
     ctx->device_ref = av_buffer_ref(ctx->input_frames->device_ref);
     if (!ctx->device_ref) {
