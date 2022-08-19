@@ -192,6 +192,7 @@ isYUV:
   p016le
   uyvy422
   uyyvyy411
+  vuyx
   xyz12be
   xyz12le
   y210be
@@ -696,6 +697,7 @@ Packed:
   rgba64le
   uyvy422
   uyyvyy411
+  vuyx
   x2rgb10be
   x2rgb10le
   xyz12be

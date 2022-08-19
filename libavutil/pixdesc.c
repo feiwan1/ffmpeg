@@ -2395,6 +2395,17 @@ static const AVPixFmtDescriptor av_pix_fmt_descriptors[AV_PIX_FMT_NB] = {
         .name = "vulkan",
         .flags = AV_PIX_FMT_FLAG_HWACCEL,
     },
+    [AV_PIX_FMT_VUYX] = {
+        .name = "vuyx",
+        .nb_components = 3,
+        .log2_chroma_w = 0,
+        .log2_chroma_h = 0,
+        .comp = {
+            { 0, 4, 2, 0, 8 },        /* Y */
+            { 0, 4, 1, 0, 8 },        /* U */
+            { 0, 4, 0, 0, 8 },        /* V */
+        },
+    },
 };
 #if FF_API_PLUS1_MINUS1
 FF_ENABLE_DEPRECATION_WARNINGS

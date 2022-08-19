@@ -360,6 +360,9 @@ enum AVPixelFormat {
 
     AV_PIX_FMT_X2RGB10LE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), little-endian, X=unused/undefined
     AV_PIX_FMT_X2RGB10BE, ///< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), big-endian, X=unused/undefined
+
+    AV_PIX_FMT_VUYX,        ///< packed VUYX 4:4:4, 32bpp, Variant of VUYA where alpha channel is left undefined
+
     AV_PIX_FMT_NB         ///< number of pixel formats, DO NOT USE THIS if you want to link with shared libav* because the number of formats might differ between versions
 };
 
