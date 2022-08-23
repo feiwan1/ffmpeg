@@ -29,7 +29,6 @@
 
 #include "libavutil/hwcontext.h"
 #include "libavutil/hwcontext_vaapi.h"
-#include "libavutil/fifo.h"
 
 #include "avcodec.h"
 #include "hwconfig.h"
@@ -48,7 +47,6 @@ enum {
     MAX_TILE_ROWS          = 22,
     // A.4.1: table A.6 allows at most 20 tile columns for any level.
     MAX_TILE_COLS          = 20,
-    MAX_ASYNC_DEPTH        = 64,
 };
 
 extern const AVCodecHWConfigInternal *const ff_vaapi_encode_hw_configs[];
@@ -303,8 +301,7 @@ typedef struct VAAPIEncodeContext {
     // Timestamp handling.
     int64_t         first_pts;
     int64_t         dts_pts_diff;
-    int64_t         ts_ring[MAX_REORDER_DELAY * 3 +
-                            MAX_ASYNC_DEPTH];
+    int64_t         ts_ring[MAX_REORDER_DELAY * 3];
 
     // Slice structure.
     int slice_block_rows;
@@ -356,10 +353,6 @@ typedef struct VAAPIEncodeContext {
 
     // Whether the driver support vaSyncBuffer
     int             has_sync_buffer_func;
-    // Store buffered pic
-    AVFifo          *encode_fifo;
-    // Max number of frame buffered in encoder.
-    int             async_depth;
 } VAAPIEncodeContext;
 
 enum {
@@ -478,11 +471,6 @@ int ff_vaapi_encode_close(AVCodecContext *avctx);
       "Maximum B-frame reference depth", \
       OFFSET(common.desired_b_depth), AV_OPT_TYPE_INT, \
       { .i64 = 1 }, 1, INT_MAX, FLAGS }, \
-    { "async_depth", "Maximum processing parallelism. " \
-      "Increase this to improve single channel performance. This option " \
-      "doesn't work if driver doesn't implement vaSyncBuffer function.", \
-      OFFSET(common.async_depth), AV_OPT_TYPE_INT, \
-      { .i64 = 2 }, 1, MAX_ASYNC_DEPTH, FLAGS }, \
     { "max_frame_size", \
       "Maximum frame size (in bytes)",\
       OFFSET(common.max_frame_size), AV_OPT_TYPE_INT, \
