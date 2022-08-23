@@ -293,7 +293,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
         av_assert0(pic->refs[i]->encode_issued);
     }
 
-    av_log(avctx, AV_LOG_DEBUG, "Input surface is %#x.\n", pic->input_surface);
+    av_log(avctx, AV_LOG_WARNING, "Input surface is %#x.\n", pic->input_surface);
 
     pic->recon_image = av_frame_alloc();
     if (!pic->recon_image) {
@@ -307,7 +307,7 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
         goto fail;
     }
     pic->recon_surface = (VASurfaceID)(uintptr_t)pic->recon_image->data[3];
-    av_log(avctx, AV_LOG_DEBUG, "Recon surface is %#x.\n", pic->recon_surface);
+    av_log(avctx, AV_LOG_WARNING, "Recon surface is %#x.\n", pic->recon_surface);
 
     pic->output_buffer_ref = av_buffer_pool_get(ctx->output_buffer_pool);
     if (!pic->output_buffer_ref) {
@@ -939,7 +939,7 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
     }
 
     if (pic) {
-        av_log(avctx, AV_LOG_DEBUG, "Pick B-picture at depth %d to "
+        av_log(avctx, AV_LOG_WARNING, "Pick B-picture at depth %d to "
                "encode next.\n", pic->b_depth);
         *pic_out = pic;
         return 0;
@@ -983,18 +983,18 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
     }
 
     if (!pic) {
-        av_log(avctx, AV_LOG_DEBUG, "Pick nothing to encode next - "
+        av_log(avctx, AV_LOG_WARNING, "Pick nothing to encode next - "
                "need more input for reference pictures.\n");
         return AVERROR(EAGAIN);
     }
     if (ctx->input_order <= ctx->decode_delay && !ctx->end_of_stream) {
-        av_log(avctx, AV_LOG_DEBUG, "Pick nothing to encode next - "
+        av_log(avctx, AV_LOG_WARNING, "Pick nothing to encode next - "
                "need more input for timestamps.\n");
         return AVERROR(EAGAIN);
     }
 
     if (pic->force_idr) {
-        av_log(avctx, AV_LOG_DEBUG, "Pick forced IDR-picture to "
+        av_log(avctx, AV_LOG_WARNING, "Pick forced IDR-picture to "
                "encode next.\n");
         pic->type = PICTURE_TYPE_IDR;
         ctx->idr_counter = 1;
@@ -1002,12 +1002,12 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
 
     } else if (ctx->gop_counter + b_counter >= ctx->gop_size) {
         if (ctx->idr_counter == ctx->gop_per_idr) {
-            av_log(avctx, AV_LOG_DEBUG, "Pick new-GOP IDR-picture to "
+            av_log(avctx, AV_LOG_WARNING, "Pick new-GOP IDR-picture to "
                    "encode next.\n");
             pic->type = PICTURE_TYPE_IDR;
             ctx->idr_counter = 1;
         } else {
-            av_log(avctx, AV_LOG_DEBUG, "Pick new-GOP I-picture to "
+            av_log(avctx, AV_LOG_WARNING, "Pick new-GOP I-picture to "
                    "encode next.\n");
             pic->type = PICTURE_TYPE_I;
             ++ctx->idr_counter;
@@ -1016,10 +1016,10 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
 
     } else {
         if (ctx->gop_counter + b_counter + closed_gop_end == ctx->gop_size) {
-            av_log(avctx, AV_LOG_DEBUG, "Pick group-end P-picture to "
+            av_log(avctx, AV_LOG_WARNING, "Pick group-end P-picture to "
                    "encode next.\n");
         } else {
-            av_log(avctx, AV_LOG_DEBUG, "Pick normal P-picture to "
+            av_log(avctx, AV_LOG_WARNING, "Pick normal P-picture to "
                    "encode next.\n");
         }
         pic->type = PICTURE_TYPE_P;
@@ -1211,6 +1211,9 @@ int ff_vaapi_encode_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
     av_assert0(pic);
 
     pic->encode_order = ctx->encode_order++;
+
+    av_log(avctx, AV_LOG_WARNING, "Encode pic id:0x%x, type:%d, display order:%ld, encoder order:%ld:\n",
+           pic->input_surface, pic->type, pic->display_order, pic->encode_order);
 
     err = vaapi_encode_issue(avctx, pic);
     if (err < 0) {
