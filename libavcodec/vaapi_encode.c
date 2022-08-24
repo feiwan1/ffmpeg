@@ -1914,7 +1914,6 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
     VAAPIEncodeContext *ctx = avctx->priv_data;
     VAStatus vas;
     VAConfigAttrib attr = { VAConfigAttribEncMaxRefFrames };
-    uint32_t ref_l0, ref_l1;
     int prediction_pre_only;
 
     vas = vaGetConfigAttributes(ctx->hwctx->display,
@@ -1928,10 +1927,10 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
     }
 
     if (attr.value == VA_ATTRIB_NOT_SUPPORTED) {
-        ref_l0 = ref_l1 = 0;
+        ctx->max_ref_l0 = ctx->max_ref_l1 = 0;
     } else {
-        ref_l0 = attr.value       & 0xffff;
-        ref_l1 = attr.value >> 16 & 0xffff;
+        ctx->max_ref_l0 = attr.value       & 0xffff;
+        ctx->max_ref_l1 = attr.value >> 16 & 0xffff;
     }
 
     ctx->p_to_gpb = 0;
@@ -1953,15 +1952,15 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
             av_log(avctx, AV_LOG_VERBOSE, "Driver does not report any additional "
                    "prediction constraints.\n");
         } else {
-            if (((ref_l0 > 0 || ref_l1 > 0) && !(attr.value & VA_PREDICTION_DIRECTION_PREVIOUS)) ||
-                ((ref_l1 == 0) && (attr.value & (VA_PREDICTION_DIRECTION_FUTURE | VA_PREDICTION_DIRECTION_BI_NOT_EMPTY)))) {
+            if (((ctx->max_ref_l0 > 0 || ctx->max_ref_l1 > 0) && !(attr.value & VA_PREDICTION_DIRECTION_PREVIOUS)) ||
+                ((ctx->max_ref_l1 == 0) && (attr.value & (VA_PREDICTION_DIRECTION_FUTURE | VA_PREDICTION_DIRECTION_BI_NOT_EMPTY)))) {
                 av_log(avctx, AV_LOG_ERROR, "Driver report incorrect prediction "
                        "direction attribute.\n");
                 return AVERROR_EXTERNAL;
             }
 
             if (!(attr.value & VA_PREDICTION_DIRECTION_FUTURE)) {
-                if (ref_l0 > 0 && ref_l1 > 0) {
+                if (ctx->max_ref_l0 > 0 && ctx->max_ref_l1 > 0) {
                     prediction_pre_only = 1;
                     av_log(avctx, AV_LOG_VERBOSE, "Driver only support same reference "
                            "lists for B-frames.\n");
@@ -1969,7 +1968,7 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
             }
 
             if (attr.value & VA_PREDICTION_DIRECTION_BI_NOT_EMPTY) {
-                if (ref_l0 > 0 && ref_l1 > 0) {
+                if (ctx->max_ref_l0 > 0 && ctx->max_ref_l1 > 0) {
                     ctx->p_to_gpb = 1;
                     av_log(avctx, AV_LOG_VERBOSE, "Driver does not support P-frames, "
                            "replacing them with B-frames.\n");
@@ -1983,20 +1982,20 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
         avctx->gop_size <= 1) {
         av_log(avctx, AV_LOG_VERBOSE, "Using intra frames only.\n");
         ctx->gop_size = 1;
-    } else if (ref_l0 < 1) {
+    } else if (ctx->max_ref_l0 < 1) {
         av_log(avctx, AV_LOG_ERROR, "Driver does not support any "
                "reference frames.\n");
         return AVERROR(EINVAL);
     } else if (!(ctx->codec->flags & FLAG_B_PICTURES) ||
-               ref_l1 < 1 || avctx->max_b_frames < 1 ||
+               ctx->max_ref_l1 < 1 || avctx->max_b_frames < 1 ||
                prediction_pre_only) {
         if (ctx->p_to_gpb)
            av_log(avctx, AV_LOG_VERBOSE, "Using intra and B-frames "
                   "(supported references: %d / %d).\n",
-                  ref_l0, ref_l1);
+                  ctx->max_ref_l0, ctx->max_ref_l1);
         else
             av_log(avctx, AV_LOG_VERBOSE, "Using intra and P-frames "
-                   "(supported references: %d / %d).\n", ref_l0, ref_l1);
+                   "(supported references: %d / %d).\n", ctx->max_ref_l0, ctx->max_ref_l1);
         ctx->gop_size = avctx->gop_size;
         ctx->p_per_i  = INT_MAX;
         ctx->b_per_p  = 0;
@@ -2004,10 +2003,10 @@ static av_cold int vaapi_encode_init_gop_structure(AVCodecContext *avctx)
        if (ctx->p_to_gpb)
            av_log(avctx, AV_LOG_VERBOSE, "Using intra and B-frames "
                   "(supported references: %d / %d).\n",
-                  ref_l0, ref_l1);
+                  ctx->max_ref_l0, ctx->max_ref_l1);
        else
            av_log(avctx, AV_LOG_VERBOSE, "Using intra, P- and B-frames "
-                  "(supported references: %d / %d).\n", ref_l0, ref_l1);
+                  "(supported references: %d / %d).\n", ctx->max_ref_l0, ctx->max_ref_l1);
         ctx->gop_size = avctx->gop_size;
         ctx->p_per_i  = INT_MAX;
         ctx->b_per_p  = avctx->max_b_frames;

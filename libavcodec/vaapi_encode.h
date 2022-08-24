@@ -333,6 +333,7 @@ typedef struct VAAPIEncodeContext {
     int gop_counter;
     int end_of_stream;
     int p_to_gpb;
+    uint32_t max_ref_l0, max_ref_l1;
 
     // Whether the driver supports ROI at all.
     int             roi_allowed;
