@@ -765,6 +765,9 @@ static int vaapi_encode_free(AVCodecContext *avctx,
 {
     int i;
 
+    av_log(avctx, AV_LOG_WARNING, "Free pic id:0x%x, type:%d, display order:%ld, encoder order:%ld\n",
+           pic->input_surface, pic->type, pic->display_order, pic->encode_order);
+
     if (pic->encode_issued)
         vaapi_encode_discard(avctx, pic);
 
@@ -797,6 +800,10 @@ static void vaapi_encode_add_ref(AVCodecContext *avctx,
                                  int is_ref, int in_dpb, int prev)
 {
     int refs = 0;
+    av_log(avctx, AV_LOG_WARNING, "add ref pic is_ref:%d, in_dpb:%d, prev:%d.\n    pic id:   0x%x, type:%d, display order:%ld.\n    target id:0x%x, type:%d, display order:%ld\n",
+        is_ref, in_dpb, prev,
+        pic->input_surface, pic->type, pic->display_order,
+        target->input_surface, target->type, target->display_order);
 
     if (is_ref) {
         av_assert0(pic != target);
@@ -1040,8 +1047,11 @@ static int vaapi_encode_pick_next(AVCodecContext *avctx,
         --ctx->next_prev->ref_count[0];
 
     if (b_counter > 0) {
+        printf("--- start set B frames\n");
         vaapi_encode_set_b_pictures(avctx, start, pic, pic, 1,
                                     &ctx->next_prev);
+        printf("--- end set B frames\n");
+
     } else {
         ctx->next_prev = pic;
     }
