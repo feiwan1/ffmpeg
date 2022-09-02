@@ -183,6 +183,7 @@ extern const AVInputFormat  ff_gdv_demuxer;
 extern const AVInputFormat  ff_genh_demuxer;
 extern const AVInputFormat  ff_gif_demuxer;
 extern const AVOutputFormat ff_gif_muxer;
+extern const AVOutputFormat ff_gop_concat_muxer;
 extern const AVInputFormat  ff_gsm_demuxer;
 extern const AVOutputFormat ff_gsm_muxer;
 extern const AVInputFormat  ff_gxf_demuxer;

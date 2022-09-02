@@ -290,6 +290,7 @@ static int framehash_write_packet(struct AVFormatContext *s, AVPacket *pkt)
     len = strlen(buf);
     av_hash_final_hex(c->hashes[0], buf + len, sizeof(buf) - len);
     avio_write(s->pb, buf, strlen(buf));
+    printf("----------------------------------------------%s---------------------\n", buf);
 
     if (c->format_version > 1 && pkt->side_data_elems) {
         int i;
