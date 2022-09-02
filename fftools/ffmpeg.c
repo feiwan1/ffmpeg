@@ -944,6 +944,8 @@ static int choose_output(OutputStream **post)
 {
     int64_t opts_min = INT64_MAX;
     OutputStream *ost_min = NULL;
+    static OutputStream *prev_video_ost = NULL;
+    int available_video_number = 0;
 
     for (OutputStream *ost = ost_iter(NULL); ost; ost = ost_iter(ost)) {
         int64_t opts;
@@ -959,11 +961,28 @@ static int choose_output(OutputStream **post)
             ost_min = ost;
             break;
         }
-        if (!ost->finished && opts < opts_min) {
-            opts_min = opts;
-            ost_min  = ost;
+        if (ignore_ts) {
+            if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && !ost->finished)
+                available_video_number++;
+
+            if (!ost->finished && opts < opts_min && (ost != prev_video_ost)) {
+                opts_min = opts;
+                ost_min  = ost;
+            }
+        } else {
+            if (!ost->finished && opts < opts_min) {
+                opts_min = opts;
+                ost_min  = ost;
+            }
         }
     }
+
+    if (ost_min && ost_min->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+        prev_video_ost = ost_min;
+    // reset prev video ost to NULL when only 1 not finished video stream exist.
+    if (available_video_number == 1)
+        prev_video_ost = NULL;
+
     if (!ost_min)
         return AVERROR_EOF;
     *post = ost_min;
