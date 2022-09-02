@@ -171,6 +171,7 @@ extern AVInputFormat  ff_gdv_demuxer;
 extern AVInputFormat  ff_genh_demuxer;
 extern AVInputFormat  ff_gif_demuxer;
 extern AVOutputFormat ff_gif_muxer;
+extern AVOutputFormat ff_gop_concat_muxer;
 extern AVInputFormat  ff_gsm_demuxer;
 extern AVOutputFormat ff_gsm_muxer;
 extern AVInputFormat  ff_gxf_demuxer;
