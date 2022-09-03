@@ -794,68 +794,19 @@ static int vaapi_encode_free(AVCodecContext *avctx,
     return 0;
 }
 
-static void vaapi_encode_add_ref(AVCodecContext *avctx,
-                                 VAAPIEncodePicture *pic,
-                                 VAAPIEncodePicture *target,
-                                 int is_ref, int in_dpb, int prev)
+static void vaapi_encode_picture_ref(VAAPIEncodePicture *dst,
+                                     VAAPIEncodePicture *src)
 {
-    int refs = 0;
-    av_log(avctx, AV_LOG_WARNING, "add ref pic is_ref:%d, in_dpb:%d, prev:%d.\n    pic id:   0x%x, type:%d, display order:%ld.\n    target id:0x%x, type:%d, display order:%ld\n",
-        is_ref, in_dpb, prev,
-        pic->input_surface, pic->type, pic->display_order,
-        target->input_surface, target->type, target->display_order);
-
-    if (is_ref) {
-        av_assert0(pic != target);
-        av_assert0(pic->nb_refs < MAX_PICTURE_REFERENCES);
-        pic->refs[pic->nb_refs++] = target;
-        ++refs;
-    }
-
-    if (in_dpb) {
-        av_assert0(pic->nb_dpb_pics < MAX_DPB_SIZE);
-        pic->dpb[pic->nb_dpb_pics++] = target;
-        ++refs;
-    }
-
-    if (prev) {
-        av_assert0(!pic->prev);
-        pic->prev = target;
-        ++refs;
-    }
-
-    target->ref_count[0] += refs;
-    target->ref_count[1] += refs;
+    av_assert0(src != dst);
+    src->ref_count++;
+    dst = src;
 }
 
-static void vaapi_encode_remove_refs(AVCodecContext *avctx,
-                                     VAAPIEncodePicture *pic,
-                                     int level)
+static void vaapi_encode_picture_unref(VAAPIEncodePicture pic)
 {
-    int i;
-
-    if (pic->ref_removed[level])
-        return;
-
-    for (i = 0; i < pic->nb_refs; i++) {
-        av_assert0(pic->refs[i]);
-        --pic->refs[i]->ref_count[level];
-        av_assert0(pic->refs[i]->ref_count[level] >= 0);
-    }
-
-    for (i = 0; i < pic->nb_dpb_pics; i++) {
-        av_assert0(pic->dpb[i]);
-        --pic->dpb[i]->ref_count[level];
-        av_assert0(pic->dpb[i]->ref_count[level] >= 0);
-    }
-
-    av_assert0(pic->prev || pic->type == PICTURE_TYPE_IDR);
-    if (pic->prev) {
-        --pic->prev->ref_count[level];
-        av_assert0(pic->prev->ref_count[level] >= 0);
-    }
-
-    pic->ref_removed[level] = 1;
+    av_assert0(pic);
+    av_assert0(pic->ref_count);
+    pic->ref_count--;
 }
 
 static void vaapi_encode_set_b_pictures(AVCodecContext *avctx,
@@ -1066,24 +1017,21 @@ static int vaapi_encode_clear_old(AVCodecContext *avctx)
 
     av_assert0(ctx->pic_start);
 
-    // Remove direct references once each picture is complete.
+    // Remove references once each picture is complete.
     for (pic = ctx->pic_start; pic; pic = pic->next) {
-        if (pic->encode_complete && pic->next)
-            vaapi_encode_remove_refs(avctx, pic, 0);
-    }
-
-    // Remove indirect references once a picture has no direct references.
-    for (pic = ctx->pic_start; pic; pic = pic->next) {
-        if (pic->encode_complete && pic->ref_count[0] == 0)
-            vaapi_encode_remove_refs(avctx, pic, 1);
+        if (pic->encode_complete && pic->nb_refs) {
+            for (i = 0; i < pic->nb_refs; i++)
+                vaapi_encode_picture_unref(pic->refs[i]);
+            // Set nb_refs to 0 indicate pic's refs have been unrefed.
+            pic->nb_refs = 0;
+        }
     }
 
     // Clear out all complete pictures with no remaining references.
     prev = NULL;
     for (pic = ctx->pic_start; pic; pic = next) {
         next = pic->next;
-        if (pic->encode_complete && pic->ref_count[1] == 0) {
-            av_assert0(pic->ref_removed[0] && pic->ref_removed[1]);
+        if (pic->encode_complete && pic->ref_count == 0) {
             if (prev)
                 prev->next = next;
             else

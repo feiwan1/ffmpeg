@@ -105,23 +105,13 @@ typedef struct VAAPIEncodePicture {
     // Whether this picture is a reference picture.
     int             is_reference;
 
-    // The contents of the DPB after this picture has been decoded.
-    // This will contain the picture itself if it is a reference picture,
-    // but not if it isn't.
-    int                     nb_dpb_pics;
-    struct VAAPIEncodePicture *dpb[MAX_DPB_SIZE];
     // The reference pictures used in decoding this picture.  If they are
     // used by later pictures they will also appear in the DPB.
     int                     nb_refs;
     struct VAAPIEncodePicture *refs[MAX_PICTURE_REFERENCES];
-    // The previous reference picture in encode order.  Must be in at least
-    // one of the reference list and DPB list.
-    struct VAAPIEncodePicture *prev;
-    // Reference count for other pictures referring to this one through
-    // the above pointers, directly from incomplete pictures and indirectly
-    // through completed pictures.
-    int             ref_count[2];
-    int             ref_removed[2];
+  
+    // Reference count for other pictures and DPB referring to this one.
+    int             ref_count;
 
     int          nb_slices;
     VAAPIEncodeSlice *slices;
@@ -354,6 +344,9 @@ typedef struct VAAPIEncodeContext {
 
     // Whether the driver support vaSyncBuffer
     int             has_sync_buffer_func;
+
+    int                     nb_dpb_pics;
+    struct VAAPIEncodePicture *dpb[MAX_DPB_SIZE];
 } VAAPIEncodeContext;
 
 enum {
