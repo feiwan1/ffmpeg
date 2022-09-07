@@ -1751,6 +1751,7 @@ EXAMPLE_LIST="
     vaapi_decode_example
     vaapi_encode_example
     vaapi_transcode_example
+    qsv_transcode_example
 "
 
 EXTERNAL_AUTODETECT_LIBRARY_LIST="
@@ -3818,6 +3819,7 @@ transcoding_example_deps="avfilter avcodec avformat avutil"
 vaapi_decode_example_deps="avcodec avformat avutil"
 vaapi_encode_example_deps="avcodec avutil h264_vaapi_encoder"
 vaapi_transcode_example_deps="avcodec avformat avutil h264_vaapi_encoder"
+qsv_transcode_example_deps="avcodec avformat avutil h264_qsv_encoder"
 
 # EXTRALIBS_LIST
 cpu_init_extralibs="pthreads_extralibs"
