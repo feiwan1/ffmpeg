@@ -279,4 +279,5 @@ const AVOutputFormat ff_gop_concat_muxer = {
     .write_trailer     = gop_concat_write_trailer,
     .deinit            = gop_concat_deinit,
     .priv_class        = &gop_concat_muxer_class,
+    .flags             = AVFMT_GLOBALHEADER,
 };
