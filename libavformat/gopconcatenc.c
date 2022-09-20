@@ -143,6 +143,7 @@ static int send_output_pkt(AVFormatContext *ctx)
     AVFormatContext *avf2 = s->avf;
     PacketListEntry *pktl, *prev_pktl = NULL;
     AVPacket *pkt = NULL;
+    AVRational src_tb, dst_tb;
     int ret;
 
     pktl = s->pkt_list.head;
@@ -155,8 +156,14 @@ static int send_output_pkt(AVFormatContext *ctx)
             // force to push pkt to one output stream.
             if (pkt->stream_index)
                 pkt->stream_index = 0;
-            //pkt->pts += (s->gop_counter/ctx->nb_streams + s->stream_idx) * s->gop_size;
-            //pkt->dts += (s->gop_counter/ctx->nb_streams + s->stream_idx) * s->gop_size;
+
+            pkt->pts += (s->gop_counter/ctx->nb_streams + s->stream_idx) * s->gop_size;
+            pkt->dts += (s->gop_counter/ctx->nb_streams + s->stream_idx) * s->gop_size;
+
+            src_tb = ctx->streams[0]->time_base;
+            dst_tb = avf2->streams[0]->time_base;
+            av_packet_rescale_ts(pkt, src_tb, dst_tb);
+
             ret = av_write_frame(avf2, pkt);
             if (ret < 0) {
                 av_log(s, AV_LOG_ERROR, "Failed to send output pkt.\n");
@@ -183,13 +190,7 @@ static int send_output_pkt(AVFormatContext *ctx)
 static int gop_concat_write_packet(AVFormatContext *ctx, AVPacket *pkt)
 {
     GopConcatMuxContext *s = ctx->priv_data;
-    AVFormatContext *avf2 = s->avf;
-    AVRational src_tb, dst_tb;
     int ret;
-
-    src_tb = ctx->streams[0]->time_base;
-    dst_tb = avf2->streams[0]->time_base;
-    av_packet_rescale_ts(pkt, src_tb, dst_tb);
 
     av_log(s, AV_LOG_DEBUG, "input pkt pts:%ld, dts:%ld, idx:%d, size:%d-\n", pkt->pts, pkt->dts, pkt->stream_index, pkt->size);
 
