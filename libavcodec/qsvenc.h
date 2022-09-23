@@ -52,13 +52,6 @@
 #define QSV_HAVE_MF     QSV_VERSION_ATLEAST(1, 25) && !QSV_ONEVPL
 #endif
 
-#if !QSV_HAVE_LA_DS
-#define MFX_LOOKAHEAD_DS_UNKNOWN 0
-#define MFX_LOOKAHEAD_DS_OFF 0
-#define MFX_LOOKAHEAD_DS_2x 0
-#define MFX_LOOKAHEAD_DS_4x 0
-#endif
-
 #define QSV_COMMON_OPTS \
 { "async_depth", "Maximum processing parallelism", OFFSET(qsv.async_depth), AV_OPT_TYPE_INT, { .i64 = ASYNC_DEPTH_DEFAULT }, 1, INT_MAX, VE },                          \
 { "avbr_accuracy",    "Accuracy of the AVBR ratecontrol (unit of tenth of percent)",    OFFSET(qsv.avbr_accuracy),    AV_OPT_TYPE_INT, { .i64 = 1 }, 1, UINT16_MAX, VE }, \
@@ -161,8 +154,7 @@ typedef struct QSVEncContext {
 
     mfxExtVideoSignalInfo extvsi;
 
-    mfxExtBuffer  *extparam_internal[3 + QSV_HAVE_CO2 + QSV_HAVE_CO3 + (QSV_HAVE_MF * 2) +
-                                     QSV_HAVE_EXT_HEVC_PARAM + QSV_HAVE_EXT_AV1_PARAM * 2];
+    mfxExtBuffer  *extparam_internal[6 + (QSV_HAVE_MF * 2) + QSV_HAVE_EXT_AV1_PARAM * 2];
     int         nb_extparam_internal;
 
     mfxExtBuffer **extparam;
