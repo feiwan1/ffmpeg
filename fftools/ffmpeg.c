@@ -1609,8 +1609,8 @@ static void print_report(int is_last_report, int64_t timer_start, int64_t cur_ti
             uint64_t frame_number = atomic_load(&ost->packets_written);
 
             fps = t > 1 ? frame_number / t : 0;
-            av_bprintf(&buf, "frame=%5"PRId64" fps=%3.*f q=%3.1f ",
-                     frame_number, fps < 9.95, fps, q);
+            av_bprintf(&buf, "frame=%5"PRId64" fps=%.3f q=%3.1f ",
+                     frame_number, fps, q);
             av_bprintf(&buf_script, "frame=%"PRId64"\n", frame_number);
             av_bprintf(&buf_script, "fps=%.2f\n", fps);
             av_bprintf(&buf_script, "stream_%d_%d_q=%.1f\n",
