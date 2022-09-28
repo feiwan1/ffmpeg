@@ -217,6 +217,7 @@ static av_cold int gop_concat_write_trailer(AVFormatContext *ctx)
     AVFormatContext *avf2 = s->avf;
     PacketListEntry *pktl, *prev_pktl;
     AVPacket *pkt = NULL;
+    AVRational src_tb, dst_tb;
     int ret, i;
 
     if (!s->header_written)
@@ -230,6 +231,14 @@ static av_cold int gop_concat_write_trailer(AVFormatContext *ctx)
                 // avio_write(ctx->pb, pkt->data, pkt->size);
                 if (pkt->stream_index)
                     pkt->stream_index = 0;
+
+                pkt->pts += (s->gop_counter/ctx->nb_streams + s->stream_idx) * s->gop_size;
+                pkt->dts += (s->gop_counter/ctx->nb_streams + s->stream_idx) * s->gop_size;
+
+                src_tb = ctx->streams[0]->time_base;
+                dst_tb = avf2->streams[0]->time_base;
+                av_packet_rescale_ts(pkt, src_tb, dst_tb);
+
                 ret = av_write_frame(avf2, pkt);
                 if (ret < 0) {
                     av_log(s, AV_LOG_ERROR, "Failed to send output pkt.\n");
