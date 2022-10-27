@@ -677,6 +677,7 @@ extern int stdin_interaction;
 extern int frame_bits_per_raw_sample;
 extern AVIOContext *progress_avio;
 extern float max_error_rate;
+extern int ignore_ts;
 
 extern char *filter_nbthreads;
 extern int filter_complex_nbthreads;

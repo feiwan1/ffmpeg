@@ -3503,6 +3503,16 @@ static OutputStream *choose_output(void)
     int i;
     int64_t opts_min = INT64_MAX;
     OutputStream *ost_min = NULL;
+    static int idx = 0;
+
+    if (ignore_ts) {
+         OutputStream *ost = output_streams[idx];
+         if (idx++ == (nb_output_streams - 1))
+            idx = 0;
+         if (ost)
+            return ost->unavailable ? NULL : ost;
+         return NULL;
+    }
 
     for (i = 0; i < nb_output_streams; i++) {
         OutputStream *ost = output_streams[i];
