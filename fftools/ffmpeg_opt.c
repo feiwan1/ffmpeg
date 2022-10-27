@@ -172,6 +172,7 @@ float max_error_rate  = 2.0/3;
 int filter_nbthreads = 0;
 int filter_complex_nbthreads = 0;
 int vstats_version = 2;
+int ignore_ts = 0;
 
 
 static int intra_only         = 0;
@@ -3790,6 +3791,8 @@ const OptionDef options[] = {
         "initialise hardware device", "args" },
     { "filter_hw_device", HAS_ARG | OPT_EXPERT, { .func_arg = opt_filter_hw_device },
         "set hardware device used when filtering", "device" },
+    { "ignore_ts",      OPT_BOOL | OPT_EXPERT,                       { &ignore_ts },
+        "ignore ts of different stream and cross output stream by steam" },
 
     { NULL, },
 };
