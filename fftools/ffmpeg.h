@@ -606,6 +606,7 @@ extern int frame_bits_per_raw_sample;
 extern AVIOContext *progress_avio;
 extern float max_error_rate;
 extern char *videotoolbox_pixfmt;
+extern int ignore_ts;
 
 extern int filter_nbthreads;
 extern int filter_complex_nbthreads;
