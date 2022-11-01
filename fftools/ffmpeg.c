@@ -3826,19 +3826,19 @@ static int need_output(void)
  */
 static OutputStream *choose_output(void)
 {
-    int i;
+    int i, j;
     int64_t opts_min = INT64_MAX;
     OutputStream *ost_min = NULL;
-    static int idx = 0;
+    static int prev_video_idx = 0;
 
-    if (ignore_ts) {
-         OutputStream *ost = output_streams[idx];
-         if (idx++ == (nb_output_streams - 1))
-            idx = 0;
-         if (ost)
-            return ost->unavailable ? NULL : ost;
-         return NULL;
-    }
+    //if (ignore_ts) {
+    //    OutputStream *ost = output_streams[idx];
+    //     if (idx++ == (nb_output_streams - 1))
+    //        idx = 0;
+    //     if (ost)
+    //        return ost->unavailable ? NULL : ost;
+    //     return NULL;
+    //}
 
     for (i = 0; i < nb_output_streams; i++) {
         OutputStream *ost = output_streams[i];
@@ -3853,11 +3853,26 @@ static OutputStream *choose_output(void)
         if (!ost->initialized && !ost->inputs_done)
             return ost;
 
-        if (!ost->finished && opts < opts_min) {
-            opts_min = opts;
-            ost_min  = ost->unavailable ? NULL : ost;
+       // if (!ost->finished && opts < opts_min) {
+       //     opts_min = opts;
+       //     ost_min  = ost->unavailable ? NULL : ost;
+       // }
+
+        if (ignore_ts) {
+            if (!ost->finished && opts < opts_min && (i != prev_video_idx)) {
+                if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+                    j = i;
+                opts_min = opts;
+                ost_min  = ost->unavailable ? NULL : ost;
+            }
+        } else {
+            if (!ost->finished && opts < opts_min) {
+                opts_min = opts;
+                ost_min  = ost->unavailable ? NULL : ost;
+            }
         }
     }
+    prev_video_idx = j;
     return ost_min;
 }
 
