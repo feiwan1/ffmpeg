@@ -129,8 +129,12 @@
 #ifndef FF_API_PSEUDOPAL
 #define FF_API_PSEUDOPAL                (LIBAVUTIL_VERSION_MAJOR < 57)
 #endif
-
-
+#ifndef FF_API_FIFO_OLD_API
+#define FF_API_FIFO_OLD_API                (LIBAVUTIL_VERSION_MAJOR < 58)
+#endif
+#ifndef FF_API_FIFO_PEEK2
+#define FF_API_FIFO_PEEK2                (LIBAVUTIL_VERSION_MAJOR < 58)
+#endif
 /**
  * @}
  * @}
