@@ -757,6 +757,7 @@ extern AVCodec ff_idf_decoder;
 
 /* external libraries, that shouldn't be used by default if one of the
  * above is available */
+extern AVCodec ff_av1_qsv_decoder;
 extern AVCodec ff_h263_v4l2m2m_encoder;
 extern AVCodec ff_libaom_av1_decoder;
 extern AVCodec ff_libopenh264_encoder;
