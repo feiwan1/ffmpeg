@@ -20,7 +20,7 @@
 
 #include "avformat.h"
 #include "internal.h"
-#include "mux.h"
+//#include "mux.h"
 
 #include "libavutil/opt.h"
 #include "libavcodec/packet_internal.h"
@@ -43,7 +43,7 @@ typedef struct GopConcatMuxContext {
 static av_cold int gop_concat_init(AVFormatContext *ctx)
 {
     GopConcatMuxContext *s = ctx->priv_data;
-    const AVOutputFormat *oformat;
+    AVOutputFormat *oformat;
     AVFormatContext *avf2;
     AVStream *st;
     int ret;
@@ -67,14 +67,22 @@ static av_cold int gop_concat_init(AVFormatContext *ctx)
         return ret;
     avf2->opaque = ctx->opaque;
     avf2->io_close = ctx->io_close;
-    avf2->io_close2 = ctx->io_close2;
+    //avf2->io_close2 = ctx->io_close2;
     avf2->io_open = ctx->io_open;
     avf2->flags = ctx->flags;
 
     // create one output stream.
-    st = ff_stream_clone(avf2, ctx->streams[0]);
+    //st = ff_stream_clone(avf2, ctx->streams[0]);
+    //if (!st)
+    //return AVERROR(ENOMEM);
+    st = avformat_new_stream(avf2, NULL);
     if (!st)
         return AVERROR(ENOMEM);
+
+    ret = ff_stream_encode_params_copy(st, ctx->streams[0]);
+    if (ret < 0) {
+        return ret;
+    }
 
     return 0;
 }
@@ -98,7 +106,8 @@ static int gop_concat_write_header(AVFormatContext *ctx)
     }
 
     for (i = 0;i < avf2->nb_streams; i++)
-        ffstream(avf2->streams[i])->cur_dts = 0;
+        //ffstream(avf2->streams[i])->cur_dts = 0;
+        avf2->streams[i]->cur_dts = 0;
 
     ret = avformat_write_header(avf2, &format_options);
     if (!ret)
@@ -280,7 +289,7 @@ static const AVClass gop_concat_muxer_class = {
     .version    = LIBAVUTIL_VERSION_INT
 };
 
-const AVOutputFormat ff_gop_concat_muxer = {
+AVOutputFormat ff_gop_concat_muxer = {
     .name              = "gop_concat",
     .long_name         = NULL_IF_CONFIG_SMALL("gop concat muxer"),
     .priv_data_size    = sizeof(GopConcatMuxContext),
