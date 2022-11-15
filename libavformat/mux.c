@@ -814,11 +814,11 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
                              int (*compare)(AVFormatContext *, const AVPacket *, const AVPacket *))
 {
     int ret;
-    PacketList **next_point, *this_pktl;
+    PacketListEntry **next_point, *this_pktl;
     AVStream *st = s->streams[pkt->stream_index];
     int chunked  = s->max_chunk_size || s->max_chunk_duration;
 
-    this_pktl    = av_malloc(sizeof(PacketList));
+    this_pktl    = av_malloc(sizeof(*this_pktl));
     if (!this_pktl) {
         av_packet_unref(pkt);
         return AVERROR(ENOMEM);
@@ -835,7 +835,7 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
     if (st->last_in_packet_buffer) {
         next_point = &(st->last_in_packet_buffer->next);
     } else {
-        next_point = &s->internal->packet_buffer;
+        next_point = &s->internal->packet_buffer.head;
     }
 
     if (chunked) {
@@ -859,7 +859,7 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
         if (chunked && !(pkt->flags & CHUNK_START))
             goto next_non_null;
 
-        if (compare(s, &s->internal->packet_buffer_end->pkt, pkt)) {
+        if (compare(s, &s->internal->packet_buffer.tail->pkt, pkt)) {
             while (   *next_point
                    && ((chunked && !((*next_point)->pkt.flags&CHUNK_START))
                        || !compare(s, &(*next_point)->pkt, pkt)))
@@ -867,12 +867,12 @@ int ff_interleave_add_packet(AVFormatContext *s, AVPacket *pkt,
             if (*next_point)
                 goto next_non_null;
         } else {
-            next_point = &(s->internal->packet_buffer_end->next);
+            next_point = &(s->internal->packet_buffer.tail->next);
         }
     }
     av_assert1(!*next_point);
 
-    s->internal->packet_buffer_end = this_pktl;
+    s->internal->packet_buffer.tail = this_pktl;
 next_non_null:
 
     this_pktl->next = *next_point;
@@ -915,7 +915,7 @@ static int interleave_compare_dts(AVFormatContext *s, const AVPacket *next,
 int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
                                  AVPacket *pkt, int flush)
 {
-    PacketList *pktl;
+    PacketListEntry *pktl;
     int stream_count = 0;
     int noninterleaved_count = 0;
     int i, ret;
@@ -940,11 +940,11 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
         flush = 1;
 
     if (s->max_interleave_delta > 0 &&
-        s->internal->packet_buffer &&
+        s->internal->packet_buffer.head &&
         !flush &&
         s->internal->nb_interleaved_streams == stream_count+noninterleaved_count
     ) {
-        AVPacket *top_pkt = &s->internal->packet_buffer->pkt;
+        AVPacket *const top_pkt = &s->internal->packet_buffer.head->pkt;
         int64_t delta_dts = INT64_MIN;
         int64_t top_dts = av_rescale_q(top_pkt->dts,
                                        s->streams[top_pkt->stream_index]->time_base,
@@ -952,7 +952,7 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
 
         for (i = 0; i < s->nb_streams; i++) {
             int64_t last_dts;
-            const PacketList *last = s->streams[i]->internal->last_in_packet_buffer;
+            const PacketListEntry *const last = s->streams[i]->internal->last_in_packet_buffer;
 
             if (!last)
                 continue;
@@ -972,11 +972,11 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
         }
     }
 
-    if (s->internal->packet_buffer &&
+    if (s->internal->packet_buffer.head &&
         eof &&
         (s->flags & AVFMT_FLAG_SHORTEST) &&
         s->internal->shortest_end == AV_NOPTS_VALUE) {
-        AVPacket *top_pkt = &s->internal->packet_buffer->pkt;
+        AVPacket *top_pkt = &s->internal->packet_buffer.head->pkt;
 
         s->internal->shortest_end = av_rescale_q(top_pkt->dts,
                                        s->streams[top_pkt->stream_index]->time_base,
@@ -984,8 +984,8 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
     }
 
     if (s->internal->shortest_end != AV_NOPTS_VALUE) {
-        while (s->internal->packet_buffer) {
-            AVPacket *top_pkt = &s->internal->packet_buffer->pkt;
+        while (s->internal->packet_buffer.head) {
+            AVPacket *top_pkt = &s->internal->packet_buffer.head->pkt;
             AVStream *st;
             int64_t top_dts = av_rescale_q(top_pkt->dts,
                                         s->streams[top_pkt->stream_index]->time_base,
@@ -994,12 +994,12 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
             if (s->internal->shortest_end + 1 >= top_dts)
                 break;
 
-            pktl = s->internal->packet_buffer;
+            pktl = s->internal->packet_buffer.head;
             st   = s->streams[pktl->pkt.stream_index];
 
-            s->internal->packet_buffer = pktl->next;
-            if (!s->internal->packet_buffer)
-                s->internal->packet_buffer_end = NULL;
+            s->internal->packet_buffer.head = pktl->next;
+            if (!s->internal->packet_buffer.head)
+                s->internal->packet_buffer.tail = NULL;
 
             if (st->last_in_packet_buffer == pktl)
                 st->last_in_packet_buffer = NULL;
@@ -1012,13 +1012,13 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
 
     if (stream_count && flush) {
         AVStream *st;
-        pktl = s->internal->packet_buffer;
+        pktl = s->internal->packet_buffer.head;
         *out = pktl->pkt;
         st   = s->streams[out->stream_index];
 
-        s->internal->packet_buffer = pktl->next;
-        if (!s->internal->packet_buffer)
-            s->internal->packet_buffer_end = NULL;
+        s->internal->packet_buffer.head = pktl->next;
+        if (!s->internal->packet_buffer.head)
+            s->internal->packet_buffer.tail= NULL;
 
         if (st->last_in_packet_buffer == pktl)
             st->last_in_packet_buffer = NULL;
@@ -1033,7 +1033,7 @@ int ff_interleave_packet_per_dts(AVFormatContext *s, AVPacket *out,
 int ff_interleaved_peek(AVFormatContext *s, int stream,
                         AVPacket *pkt, int add_offset)
 {
-    PacketList *pktl = s->internal->packet_buffer;
+    PacketListEntry *pktl = s->internal->packet_buffer.head;
     while (pktl) {
         if (pktl->pkt.stream_index == stream) {
             *pkt = pktl->pkt;

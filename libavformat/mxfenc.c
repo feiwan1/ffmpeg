@@ -3028,9 +3028,9 @@ static int mxf_interleave_get_packet(AVFormatContext *s, AVPacket *out, AVPacket
         stream_count += !!s->streams[i]->last_in_packet_buffer;
 
     if (stream_count && (s->nb_streams == stream_count || flush)) {
-        PacketList *pktl = s->internal->packet_buffer;
+        PacketListEntry *pktl = s->internal->packet_buffer.head;
         if (s->nb_streams != stream_count) {
-            PacketList *last = NULL;
+            PacketListEntry *last = NULL;
             // find last packet in edit unit
             while (pktl) {
                 if (!stream_count || pktl->pkt.stream_index == 0)
@@ -3044,7 +3044,7 @@ static int mxf_interleave_get_packet(AVFormatContext *s, AVPacket *out, AVPacket
             }
             // purge packet queue
             while (pktl) {
-                PacketList *next = pktl->next;
+                PacketListEntry *next = pktl->next;
                 av_packet_unref(&pktl->pkt);
                 av_freep(&pktl);
                 pktl = next;
@@ -3052,20 +3052,20 @@ static int mxf_interleave_get_packet(AVFormatContext *s, AVPacket *out, AVPacket
             if (last)
                 last->next = NULL;
             else {
-                s->internal->packet_buffer = NULL;
-                s->internal->packet_buffer_end= NULL;
+                s->internal->packet_buffer.head = NULL;
+                s->internal->packet_buffer.tail = NULL;
                 goto out;
             }
-            pktl = s->internal->packet_buffer;
+            pktl = s->internal->packet_buffer.head;
         }
 
         *out = pktl->pkt;
         av_log(s, AV_LOG_TRACE, "out st:%d dts:%"PRId64"\n", (*out).stream_index, (*out).dts);
-        s->internal->packet_buffer = pktl->next;
+        s->internal->packet_buffer.head = pktl->next;
         if(s->streams[pktl->pkt.stream_index]->last_in_packet_buffer == pktl)
             s->streams[pktl->pkt.stream_index]->last_in_packet_buffer= NULL;
-        if(!s->internal->packet_buffer)
-            s->internal->packet_buffer_end= NULL;
+        if(!s->internal->packet_buffer.head)
+            s->internal->packet_buffer.tail = NULL;
         av_freep(&pktl);
         return 1;
     } else {

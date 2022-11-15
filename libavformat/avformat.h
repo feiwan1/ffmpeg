@@ -1088,7 +1088,7 @@ typedef struct AVStream {
     /**
      * last packet in packet_buffer for this stream when muxing.
      */
-    struct AVPacketList *last_in_packet_buffer;
+    struct PacketListEntry *last_in_packet_buffer;
     AVProbeData probe_data;
 #define MAX_REORDER_DELAY 16
     int64_t pts_buffer[MAX_REORDER_DELAY+1];
