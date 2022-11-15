@@ -24,6 +24,7 @@
 #include <stdint.h>
 
 #include "libavutil/bprint.h"
+#include "libavcodec/packet_internal.h"
 #include "avformat.h"
 #include "os_support.h"
 
@@ -73,8 +74,7 @@ struct AVFormatInternal {
      * not decoded, for example to get the codec parameters in MPEG
      * streams.
      */
-    struct PacketList *packet_buffer;
-    struct PacketList *packet_buffer_end;
+    PacketList packet_buffer;
 
     /* av_seek_frame() support */
     int64_t data_offset; /**< offset of the first packet */
@@ -85,13 +85,11 @@ struct AVFormatInternal {
      * be identified, as parsing cannot be done without knowing the
      * codec.
      */
-    struct PacketList *raw_packet_buffer;
-    struct PacketList *raw_packet_buffer_end;
+    PacketList raw_packet_buffer;
     /**
      * Packets split by the parser get queued here.
      */
-    struct PacketList *parse_queue;
-    struct PacketList *parse_queue_end;
+    PacketList parse_queue;
     /**
      * Remaining size available for raw_packet_buffer, in bytes.
      */
@@ -342,7 +340,7 @@ struct AVStreamInternal {
     /**
      * last packet in packet_buffer for this stream when muxing.
      */
-    struct PacketList *last_in_packet_buffer;
+    PacketListEntry *last_in_packet_buffer;
 };
 
 #ifdef __GNUC__
