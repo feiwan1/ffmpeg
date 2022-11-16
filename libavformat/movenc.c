@@ -5961,6 +5961,11 @@ int ff_mov_write_packet(AVFormatContext *s, AVPacket *pkt)
     size_t prft_size;
     uint8_t *reformatted_data = NULL;
 
+    if(s->streams[pkt->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+            av_log(s, AV_LOG_VERBOSE, "mp4 input audio pkt idx:%d, pts:%ld, dts:%ld, size:%d\n", pkt->stream_index, pkt->pts, pkt->dts, pkt->size);
+    else
+            av_log(s, AV_LOG_VERBOSE, "mp4 input video pkt idx:%d, pts:%ld, dts:%ld, size:%d\n", pkt->stream_index, pkt->pts, pkt->dts, pkt->size);
+
     ret = check_pkt(s, pkt);
     if (ret < 0)
         return ret;
