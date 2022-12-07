@@ -730,7 +730,7 @@ int avpriv_packet_list_put(PacketList *packet_buffer,
                            int (*copy)(AVPacket *dst, const AVPacket *src),
                            int flags)
 {
-    PacketListEntry *pktl = av_malloc(sizeof(*pktl));
+    PacketListEntry *pktl = av_mallocz(sizeof(*pktl));
     int ret;
 
     if (!pktl)
