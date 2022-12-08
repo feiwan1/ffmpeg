@@ -25,6 +25,8 @@
 #include "libavutil/opt.h"
 #include "libavcodec/packet_internal.h"
 
+#define TOTAL_VIDEO_STREAMS 2
+
 typedef struct GopConcatMuxContext {
     const AVClass *class;
     AVFormatContext *avf;
@@ -33,6 +35,10 @@ typedef struct GopConcatMuxContext {
     unsigned int stream_idx;
     int output_number;
     unsigned int gop_counter;
+
+    // video/audio idx in avf.streams
+    unsigned int video_idx;
+    unsigned int audio_idx;
 
     uint8_t header_written;
     // user options
@@ -46,6 +52,7 @@ static av_cold int gop_concat_init(AVFormatContext *ctx)
     AVOutputFormat *oformat;
     AVFormatContext *avf2;
     AVStream *st;
+    int has_video = 0, has_audio = 0;
     int ret;
 
     oformat = av_guess_format(s->format, ctx->url, NULL);
@@ -75,13 +82,35 @@ static av_cold int gop_concat_init(AVFormatContext *ctx)
     //st = ff_stream_clone(avf2, ctx->streams[0]);
     //if (!st)
     //return AVERROR(ENOMEM);
-    st = avformat_new_stream(avf2, NULL);
-    if (!st)
-        return AVERROR(ENOMEM);
 
-    ret = ff_stream_encode_params_copy(st, ctx->streams[0]);
-    if (ret < 0) {
-        return ret;
+    for (int i = 0; i < ctx->nb_streams; ++i) {
+        if (ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            if (!has_audio) {
+                st = avformat_new_stream(avf2, NULL);
+                if (!st)
+                    return AVERROR(ENOMEM);
+
+                ret = ff_stream_encode_params_copy(st, ctx->streams[i]);
+                if (ret < 0) {
+                    return ret;
+                }
+                s->audio_idx = avf2->nb_streams - 1;
+                has_audio = 1;
+            }
+        } else if (ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            if (!has_video) {
+                st = avformat_new_stream(avf2, NULL);
+                if (!st)
+                    return AVERROR(ENOMEM);
+
+                ret = ff_stream_encode_params_copy(st, ctx->streams[i]);
+                if (ret < 0) {
+                    return ret;
+                }
+                s->video_idx = avf2->nb_streams - 1;
+                has_video = 1;
+            }
+        }
     }
 
     return 0;
@@ -162,12 +191,11 @@ static int send_output_pkt(AVFormatContext *ctx)
 
             av_log(s, AV_LOG_DEBUG, "send output pkt pts:%ld, dts:%ld, idx:%d\n", pkt->pts, pkt->dts, pkt->stream_index);
 
-            // force to push pkt to one output stream.
-            if (pkt->stream_index)
-                pkt->stream_index = 0;
+            // force to push pkt to video output stream.
+            pkt->stream_index = s->video_idx;
 
-            pkt->pts += (s->gop_counter/ctx->nb_streams + s->stream_idx) * s->gop_size;
-            pkt->dts += (s->gop_counter/ctx->nb_streams + s->stream_idx) * s->gop_size;
+            pkt->pts += (s->gop_counter/TOTAL_VIDEO_STREAMS + s->stream_idx) * s->gop_size;
+            pkt->dts += (s->gop_counter/TOTAL_VIDEO_STREAMS + s->stream_idx) * s->gop_size;
 
             src_tb = ctx->streams[0]->time_base;
             dst_tb = avf2->streams[0]->time_base;
@@ -184,8 +212,16 @@ static int send_output_pkt(AVFormatContext *ctx)
             if (++s->output_number == s->gop_size) {
                 s->gop_counter++;
                 s->output_number = 0;
-                if (++s->stream_idx == ctx->nb_streams)
-                    s->stream_idx = 0;
+
+                while (++s->stream_idx) {
+                    if (s->stream_idx == ctx->nb_streams)
+                        s->stream_idx = 0;
+                    if (ctx->streams[s->stream_idx]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+                    {
+                        av_log(s, AV_LOG_VERBOSE, "Switch input index %d for video output.\n", s->stream_idx);
+                        break;
+                    }
+                }
             }
         } else
             prev_pktl = pktl;
@@ -199,9 +235,20 @@ static int send_output_pkt(AVFormatContext *ctx)
 static int gop_concat_write_packet(AVFormatContext *ctx, AVPacket *pkt)
 {
     GopConcatMuxContext *s = ctx->priv_data;
+    AVFormatContext *avf2 = s->avf;
     int ret;
 
     av_log(s, AV_LOG_DEBUG, "input pkt pts:%ld, dts:%ld, idx:%d, size:%d-\n", pkt->pts, pkt->dts, pkt->stream_index, pkt->size);
+    // pass through audio pkt.
+    if (ctx->streams[pkt->stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+        av_log(s, AV_LOG_DEBUG, "<- send audio output pkt idx:%d, pts:%ld, dts:%ld, size:%d\n", pkt->stream_index, pkt->pts, pkt->dts, pkt->size);
+        pkt->stream_index = s->audio_idx;
+        ret = av_write_frame(avf2, pkt);
+            if (ret < 0) {
+                av_log(s, AV_LOG_ERROR, "Failed to send output pkt.\n");
+            }
+        return ret;
+    }
 
     ret = avpriv_packet_list_put(&s->pkt_list, pkt, NULL, 0);
     if (ret < 0) {
@@ -237,11 +284,10 @@ static av_cold int gop_concat_write_trailer(AVFormatContext *ctx)
             pkt = &pktl->pkt;
             if (pkt->stream_index == i) {
                 // avio_write(ctx->pb, pkt->data, pkt->size);
-                if (pkt->stream_index)
-                    pkt->stream_index = 0;
+                pkt->stream_index = s->video_idx;
 
-                pkt->pts += (s->gop_counter/ctx->nb_streams + s->stream_idx) * s->gop_size;
-                pkt->dts += (s->gop_counter/ctx->nb_streams + s->stream_idx) * s->gop_size;
+                pkt->pts += (s->gop_counter/TOTAL_VIDEO_STREAMS + s->stream_idx) * s->gop_size;
+                pkt->dts += (s->gop_counter/TOTAL_VIDEO_STREAMS + s->stream_idx) * s->gop_size;
 
                 src_tb = ctx->streams[0]->time_base;
                 dst_tb = avf2->streams[0]->time_base;
