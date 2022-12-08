@@ -548,6 +548,22 @@ static int opt_vaapi_device(void *optctx, const char *opt, const char *arg)
 }
 #endif
 
+#if CONFIG_QSV
+static int opt_qsv_device(void *optctx, const char *opt, const char *arg)
+{
+    const char *prefix = "qsv=__qsv_device:hw_any,child_device=";
+    int err;
+    char *tmp = av_asprintf("%s%s", prefix, arg);
+
+    if (!tmp)
+        return AVERROR(ENOMEM);
+
+    err = hw_device_init_from_string(tmp, NULL);
+    av_free(tmp);
+    return err;
+}
+#endif
+
 static int opt_init_hw_device(void *optctx, const char *opt, const char *arg)
 {
     if (!strcmp(arg, "list")) {
@@ -881,6 +897,12 @@ static void add_input_streams(OptionsContext *o, AVFormatContext *ic)
                     "with old commandlines. This behaviour is DEPRECATED and will be removed "
                     "in the future. Please explicitly set \"-hwaccel_output_format cuda\".\n");
                 ist->hwaccel_output_format = AV_PIX_FMT_CUDA;
+            } else if (!hwaccel_output_format && hwaccel && !strcmp(hwaccel, "qsv")) {
+                av_log(NULL, AV_LOG_WARNING,
+                    "WARNING: defaulting hwaccel_output_format to qsv for compatibility "
+                    "with old commandlines. This behaviour is DEPRECATED and will be removed "
+                    "in the future. Please explicitly set \"-hwaccel_output_format qsv\".\n");
+                ist->hwaccel_output_format = AV_PIX_FMT_QSV;
             } else if (hwaccel_output_format) {
                 ist->hwaccel_output_format = av_get_pix_fmt(hwaccel_output_format);
                 if (ist->hwaccel_output_format == AV_PIX_FMT_NONE) {
@@ -901,21 +923,10 @@ static void add_input_streams(OptionsContext *o, AVFormatContext *ic)
                 else if (!strcmp(hwaccel, "auto"))
                     ist->hwaccel_id = HWACCEL_AUTO;
                 else {
-                    enum AVHWDeviceType type;
-                    int i;
-                    for (i = 0; hwaccels[i].name; i++) {
-                        if (!strcmp(hwaccels[i].name, hwaccel)) {
-                            ist->hwaccel_id = hwaccels[i].id;
-                            break;
-                        }
-                    }
-
-                    if (!ist->hwaccel_id) {
-                        type = av_hwdevice_find_type_by_name(hwaccel);
-                        if (type != AV_HWDEVICE_TYPE_NONE) {
-                            ist->hwaccel_id = HWACCEL_GENERIC;
-                            ist->hwaccel_device_type = type;
-                        }
+                    enum AVHWDeviceType type = av_hwdevice_find_type_by_name(hwaccel);
+                    if (type != AV_HWDEVICE_TYPE_NONE) {
+                        ist->hwaccel_id = HWACCEL_GENERIC;
+                        ist->hwaccel_device_type = type;
                     }
 
                     if (!ist->hwaccel_id) {
