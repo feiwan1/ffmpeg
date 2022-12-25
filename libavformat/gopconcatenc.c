@@ -192,7 +192,7 @@ static int send_output_pkt(AVFormatContext *ctx)
                 av_log(s, AV_LOG_ERROR, "Failed to send output pkt.\n");
                 return ret;
             }
-
+	  av_packet_unref(pkt);
             // remove from list
             packet_list_remove(&s->pkt_list, pktl, prev_pktl);
             if (++s->output_number == s->gop_size) {
@@ -284,6 +284,7 @@ static av_cold int gop_concat_write_trailer(AVFormatContext *ctx)
                     av_log(s, AV_LOG_ERROR, "Failed to send output pkt.\n");
                     return ret;
                 }
+                av_packet_unref(pkt);
                 packet_list_remove(&s->pkt_list, pktl, prev_pktl);
             } else
                 prev_pktl = pktl;
