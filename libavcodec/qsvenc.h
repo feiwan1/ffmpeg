@@ -249,6 +249,9 @@ typedef struct QSVEncContext {
     int int_ref_cycle_dist;
     int recovery_point_sei;
 
+    int encode_gop_mode;
+    int frame_counter;
+
     int repeat_pps;
     int low_power;
     int gpb;

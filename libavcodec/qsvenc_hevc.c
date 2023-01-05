@@ -288,6 +288,27 @@ static int qsv_enc_frame(AVCodecContext *avctx, AVPacket *pkt,
                          const AVFrame *frame, int *got_packet)
 {
     QSVHEVCEncContext *q = avctx->priv_data;
+    QSVEncContext *ctx = &q->qsv;
+    if (ctx->encode_gop_mode) {
+        // odd
+        if (ctx->encode_gop_mode == 1) {
+            if (ctx->frame_counter / avctx->gop_size) {
+                ff_qsv_encode(avctx, &q->qsv, pkt, frame, got_packet);
+                av_log(avctx, AV_LOG_DEBUG, "frame counter odd:%d, got_pkt:%d\n", ctx->frame_counter, *got_packet);
+            }
+        } else if (ctx->encode_gop_mode == 2) {
+            if (ctx->frame_counter / avctx->gop_size == 0) {
+                ff_qsv_encode(avctx, &q->qsv, pkt, frame, got_packet);
+                av_log(avctx, AV_LOG_DEBUG, "frame counter even:%d, got_pkt:%d\n", ctx->frame_counter, *got_packet);
+            }
+        }
+
+        if (frame) {
+            if (ctx->frame_counter++ == avctx->gop_size * 2)
+                ctx->frame_counter = 0;
+        }
+        return 0;
+    }
 
     return ff_qsv_encode(avctx, &q->qsv, pkt, frame, got_packet);
 }
@@ -362,6 +383,10 @@ static const AVOption options[] = {
     { "int_ref_cycle_size", "Number of frames in the intra refresh cycle",       OFFSET(qsv.int_ref_cycle_size),      AV_OPT_TYPE_INT, { .i64 = -1 },               -1, UINT16_MAX, VE },
     { "int_ref_qp_delta",   "QP difference for the refresh MBs",                 OFFSET(qsv.int_ref_qp_delta),        AV_OPT_TYPE_INT, { .i64 = INT16_MIN }, INT16_MIN,  INT16_MAX, VE },
     { "int_ref_cycle_dist",   "Distance between the beginnings of the intra-refresh cycles in frames",  OFFSET(qsv.int_ref_cycle_dist),      AV_OPT_TYPE_INT, { .i64 = -1 }, -1, INT16_MAX, VE },
+    { "encode_gop_mode", "Which GOP will be encoded",         OFFSET(qsv.encode_gop_mode),            AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE, "encode_gop_mode" },
+        { "all",     NULL, 0, AV_OPT_TYPE_CONST, { .i64 = 0 }, .flags = VE, "encode_gop_mode" },
+        { "odd", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = 1 }, .flags = VE, "encode_gop_mode" },
+        { "even", NULL, 0, AV_OPT_TYPE_CONST, { .i64 = 2 }, .flags = VE, "encode_gop_mode" },
 
     { NULL },
 };
