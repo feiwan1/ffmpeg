@@ -3826,10 +3826,11 @@ static int need_output(void)
  */
 static OutputStream *choose_output(void)
 {
-    int i, j;
+    int i;
     int64_t opts_min = INT64_MAX;
     OutputStream *ost_min = NULL;
-    static int prev_video_idx = 0;
+    static int prev_video_idx = INT_MAX;
+    int available_video_number = 0;
 
     //if (ignore_ts) {
     //    OutputStream *ost = output_streams[idx];
@@ -3859,9 +3860,10 @@ static OutputStream *choose_output(void)
        // }
 
         if (ignore_ts) {
+            if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && !ost->finished)
+                available_video_number++;
+
             if (!ost->finished && opts < opts_min && (i != prev_video_idx)) {
-                if (ost->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
-                    j = i;
                 opts_min = opts;
                 ost_min  = ost->unavailable ? NULL : ost;
             }
@@ -3872,7 +3874,12 @@ static OutputStream *choose_output(void)
             }
         }
     }
-    prev_video_idx = j;
+    if (ost_min && ost_min->st->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+        prev_video_idx = ost_min->index;
+    // reset prev video ost to NULL when only 1 not finished video stream exist.
+    if (available_video_number == 1)
+        prev_video_idx = INT_MAX;
+
     return ost_min;
 }
 
