@@ -49,6 +49,7 @@ typedef struct VAAPIDecodePicture {
     VASurfaceID           sub_frame_surface;
     VARectangle           sub_frame_src;
     VARectangle           sub_frame_dst;
+    VAProcPipelineParameterBuffer proc_param;
 } VAAPIDecodePicture;
 
 typedef struct VAAPIDecodeContext {

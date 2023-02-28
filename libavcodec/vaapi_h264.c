@@ -233,6 +233,7 @@ static int vaapi_h264_start_frame(AVCodecContext          *avctx,
     const SPS *sps = h->ps.sps;
     VAPictureParameterBufferH264 pic_param;
     VAIQMatrixBufferH264 iq_matrix;
+    AVFrameSideData *sd;
     int err;
 
     pic->output_surface = ff_vaapi_get_surface_id(h->cur_pic_ptr->f);
@@ -299,6 +300,34 @@ static int vaapi_h264_start_frame(AVCodecContext          *avctx,
     if (err < 0)
         goto fail;
 
+    sd = av_frame_get_side_data(h->cur_pic_ptr->f, AV_FRAME_DATA_SUB_FRAME);
+    if (sd) {
+        VAProcPipelineParameterBuffer *proc_param = &pic->proc_param;
+        AVFrame *sub_frame = (AVFrame *)sd->data;
+
+        memset(proc_param, 0, sizeof(VAProcPipelineParameterBuffer));
+
+        pic->sub_frame_src.x = pic->sub_frame_src.y = 0;
+        pic->sub_frame_src.width = avctx->width;
+        pic->sub_frame_src.height = avctx->height;
+
+        pic->sub_frame_dst.x = pic->sub_frame_dst.y = 0;
+        pic->sub_frame_dst.width = sub_frame->width;
+        pic->sub_frame_dst.height = sub_frame->height;
+
+        pic->sub_frame_surface = ff_vaapi_get_surface_id(sub_frame);
+        proc_param->surface = pic->output_surface;
+        proc_param->surface_region = &pic->sub_frame_src;
+        proc_param->output_region = &pic->sub_frame_dst;
+        proc_param->additional_outputs = &pic->sub_frame_surface;
+        proc_param->num_additional_outputs = 1;
+
+        err = ff_vaapi_decode_make_param_buffer(avctx, pic,
+                                                VAProcPipelineParameterBufferType,
+                                                &pic->proc_param, sizeof(VAProcPipelineParameterBuffer));
+        if (err < 0)
+            goto fail;
+    }
     return 0;
 
 fail:
