@@ -573,6 +573,8 @@ static int hls_slice_header(HEVCContext *s)
     SliceHeader *sh   = &s->sh;
     int i, ret;
 
+    memset(sh, 0, sizeof(s->sh));
+
     // Coded parameters
     sh->first_slice_in_pic_flag = get_bits1(gb);
     if (s->ref && sh->first_slice_in_pic_flag) {
