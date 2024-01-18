@@ -26,6 +26,8 @@
 #include "libavutil/internal.h"
 #include "libavutil/log.h"
 #include "libavutil/pixdesc.h"
+#include "libavutil/macros.h"
+
 
 #include "vaapi_encode.h"
 #include "encode.h"
@@ -105,6 +107,7 @@ static int vaapi_encode_make_param_buffer(AVCodecContext *avctx,
                "(type %d): %d (%s).\n", type, vas, vaErrorStr(vas));
         return AVERROR(EIO);
     }
+    pic->param_buffers_type[pic->nb_param_buffers] = type;
     pic->param_buffers[pic->nb_param_buffers++] = buffer;
 
     av_log(avctx, AV_LOG_DEBUG, "Param buffer (%d) is %#x.\n",
@@ -260,6 +263,18 @@ static int vaapi_encode_make_tile_slice(AVCodecContext *avctx,
     }
 
     return 0;
+}
+
+static void test_reoder_params(VAAPIEncodePicture *pic)
+{
+    for(int i = 0; i < pic->nb_param_buffers; i++) {
+        for (int j = i; j < pic->nb_param_buffers; j++){
+            if (pic->param_buffers_type[j] < pic->param_buffers_type[i]) {
+                FFSWAP(VABufferID *, pic->param_buffers[i], pic->param_buffers[j]);
+                FFSWAP(int, pic->param_buffers_type[i], pic->param_buffers_type[j]);
+            }
+        }
+    }
 }
 
 static int vaapi_encode_issue(AVCodecContext *avctx,
@@ -601,6 +616,8 @@ static int vaapi_encode_issue(AVCodecContext *avctx,
         err = AVERROR(EIO);
         goto fail_with_picture;
     }
+
+	test_reoder_params(pic);
 
     vas = vaRenderPicture(ctx->hwctx->display, ctx->va_context,
                           pic->param_buffers, pic->nb_param_buffers);

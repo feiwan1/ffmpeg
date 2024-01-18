@@ -102,6 +102,7 @@ typedef struct VAAPIEncodePicture {
 
     int          nb_param_buffers;
     VABufferID     *param_buffers;
+    int       param_buffers_type[20];
 
     AVBufferRef    *output_buffer_ref;
     VABufferID      output_buffer;
