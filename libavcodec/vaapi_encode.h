@@ -39,7 +39,7 @@ struct VAAPIEncodePicture;
 
 enum {
     MAX_CONFIG_ATTRIBUTES  = 4,
-    MAX_GLOBAL_PARAMS      = 4,
+    MAX_GLOBAL_PARAMS      = 5,
     MAX_DPB_SIZE           = 16,
     MAX_PICTURE_REFERENCES = 2,
     MAX_REORDER_DELAY      = 16,
@@ -292,6 +292,7 @@ typedef struct VAAPIEncodeContext {
 #if VA_CHECK_VERSION(0, 36, 0)
     VAEncMiscParameterBufferQualityLevel quality_params;
 #endif
+    VAEncMiscParameterEncQuality enc_quality;
 
     // Per-sequence parameter structure (VAEncSequenceParameterBuffer*).
     void           *codec_sequence_params;

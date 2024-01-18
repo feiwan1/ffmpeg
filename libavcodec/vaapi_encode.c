@@ -2024,7 +2024,7 @@ rc_mode_found:
         ctx->config_attributes[ctx->nb_config_attributes++] =
             (VAConfigAttrib) {
             .type  = VAConfigAttribRateControl,
-            .value = ctx->va_rc_mode,
+            .value = ctx->va_rc_mode | VA_RC_MB,
         };
     }
 
@@ -2046,13 +2046,14 @@ rc_mode_found:
         ctx->rc_params = (VAEncMiscParameterRateControl) {
             .bits_per_second    = rc_bits_per_second,
             .target_percentage  = rc_target_percentage,
-            .window_size        = rc_window_size,
-            .initial_qp         = 0,
-            .min_qp             = (avctx->qmin > 0 ? avctx->qmin : 0),
+            .window_size        = 0,
+            .initial_qp         = 26,
+            .min_qp             = 10, //(avctx->qmin > 0 ? avctx->qmin : 0),
             .basic_unit_size    = 0,
+            .rc_flags.bits.mb_rate_control = 2,
 #if VA_CHECK_VERSION(1, 1, 0)
-            .ICQ_quality_factor = av_clip(rc_quality, 1, 51),
-            .max_qp             = (avctx->qmax > 0 ? avctx->qmax : 0),
+            .ICQ_quality_factor = 0, //av_clip(rc_quality, 1, 51),
+            .max_qp             = 51, //(avctx->qmax > 0 ? avctx->qmax : 0),
 #endif
 #if VA_CHECK_VERSION(1, 3, 0)
             .quality_factor     = rc_quality,
@@ -2070,8 +2071,8 @@ rc_mode_found:
                hrd_buffer_size, hrd_initial_buffer_fullness);
 
         ctx->hrd_params = (VAEncMiscParameterHRD) {
-            .initial_buffer_fullness = hrd_initial_buffer_fullness,
-            .buffer_size             = hrd_buffer_size,
+            .initial_buffer_fullness = hrd_initial_buffer_fullness / 3 * 4,
+            .buffer_size             = hrd_buffer_size * 2,
         };
         vaapi_encode_add_global_param(avctx,
                                       VAEncMiscParameterTypeHRD,
@@ -2516,7 +2517,7 @@ static av_cold int vaapi_encode_init_packed_headers(AVCodecContext *avctx)
         ctx->va_packed_headers = ctx->desired_packed_headers & attr.value;
     }
 
-    if (ctx->va_packed_headers) {
+    if (ctx->va_packed_headers && 0) {
         ctx->config_attributes[ctx->nb_config_attributes++] =
             (VAConfigAttrib) {
             .type  = VAConfigAttribEncPackedHeaders,

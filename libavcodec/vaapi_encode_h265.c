@@ -461,6 +461,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
     sps->sps_temporal_mvp_enabled_flag       = 0;
 
     sps->pcm_enabled_flag = 0;
+    sps->pcm_loop_filter_disabled_flag = 1;
 
 // update sps setting according to queried result
 #if VA_CHECK_VERSION(1, 13, 0)
@@ -523,9 +524,12 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
             vui->sar_width  = num;
             vui->sar_height = den;
         }
-        vui->aspect_ratio_info_present_flag = 1;
     }
 
+        vui->aspect_ratio_info_present_flag = 1;
+        vui->aspect_ratio_idc = 1;
+        vui->sar_width  = 1;
+        vui->sar_height = 1;
     // Unspecified video format, from table E-2.
     vui->video_format             = 5;
     vui->video_full_range_flag    =
@@ -550,18 +554,19 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
 
     vui->vui_timing_info_present_flag        = 1;
     vui->vui_num_units_in_tick               = vps->vps_num_units_in_tick;
-    vui->vui_time_scale                      = vps->vps_time_scale;
+    vui->vui_time_scale                      = 25;
     vui->vui_poc_proportional_to_timing_flag = vps->vps_poc_proportional_to_timing_flag;
     vui->vui_num_ticks_poc_diff_one_minus1   = vps->vps_num_ticks_poc_diff_one_minus1;
     vui->vui_hrd_parameters_present_flag     = 0;
 
     vui->bitstream_restriction_flag    = 1;
-    vui->motion_vectors_over_pic_boundaries_flag = 1;
-    vui->restricted_ref_pic_lists_flag = 1;
+    vui->motion_vectors_over_pic_boundaries_flag = 0;
+    vui->restricted_ref_pic_lists_flag = 0;
     vui->max_bytes_per_pic_denom       = 0;
     vui->max_bits_per_min_cu_denom     = 0;
-    vui->log2_max_mv_length_horizontal = 15;
-    vui->log2_max_mv_length_vertical   = 15;
+    vui->log2_max_mv_length_horizontal = 0;
+    vui->log2_max_mv_length_vertical   = 0;
+    vui->vui_num_units_in_tick         = 1;
 
 
     // PPS
@@ -578,7 +583,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
     pps->num_ref_idx_l0_default_active_minus1 = 0;
     pps->num_ref_idx_l1_default_active_minus1 = 0;
 
-    pps->init_qp_minus26 = priv->fixed_qp_idr - 26;
+    pps->init_qp_minus26 = 0;//priv->fixed_qp_idr - 26;
 
     pps->cu_qp_delta_enabled_flag = (ctx->va_rc_mode != VA_RC_CQP);
     pps->diff_cu_qp_delta_depth   = 0;
@@ -646,7 +651,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
         .intra_period     = ctx->gop_size,
         .intra_idr_period = ctx->gop_size,
         .ip_period        = ctx->b_per_p + 1,
-        .bits_per_second  = ctx->va_bit_rate,
+        .bits_per_second  = ctx->va_bit_rate/2,
 
         .pic_width_in_luma_samples  = sps->pic_width_in_luma_samples,
         .pic_height_in_luma_samples = sps->pic_height_in_luma_samples,
@@ -665,6 +670,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
             .pcm_enabled_flag              = sps->pcm_enabled_flag,
             .pcm_loop_filter_disabled_flag = sps->pcm_loop_filter_disabled_flag,
             .sps_temporal_mvp_enabled_flag = sps->sps_temporal_mvp_enabled_flag,
+            .low_delay_seq = 1,
         },
 
         .log2_min_luma_coding_block_size_minus3 =
@@ -690,7 +696,27 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
             sps->log2_min_pcm_luma_coding_block_size_minus3 +
             sps->log2_diff_max_min_pcm_luma_coding_block_size,
 
-        .vui_parameters_present_flag = 0,
+        .vui_parameters_present_flag = sps->vui_parameters_present_flag,
+        .vui_fields.bits = {
+            .aspect_ratio_info_present_flag          = vui->aspect_ratio_info_present_flag,
+            .neutral_chroma_indication_flag          = vui->neutral_chroma_indication_flag,
+            .field_seq_flag                          = vui->field_seq_flag,
+            .vui_timing_info_present_flag            = vui->vui_timing_info_present_flag,
+            .bitstream_restriction_flag              = vui->bitstream_restriction_flag,
+            .tiles_fixed_structure_flag              = vui->tiles_fixed_structure_flag,
+            .motion_vectors_over_pic_boundaries_flag = vui->motion_vectors_over_pic_boundaries_flag,
+            .restricted_ref_pic_lists_flag           = vui->restricted_ref_pic_lists_flag,
+            .log2_max_mv_length_horizontal           = vui->log2_max_mv_length_horizontal,
+            .log2_max_mv_length_vertical             = vui->log2_max_mv_length_vertical,
+        },
+        .aspect_ratio_idc             = vui->aspect_ratio_idc,
+        .sar_width                    = vui->sar_width,
+        .sar_height                   = vui->sar_height,
+        .vui_num_units_in_tick        = vui->vui_num_units_in_tick,
+        .vui_time_scale               = vui->vui_time_scale,
+        .min_spatial_segmentation_idc = vui->min_spatial_segmentation_idc,
+        .max_bytes_per_pic_denom      = vui->max_bytes_per_pic_denom,
+        .max_bits_per_min_cu_denom    = vui->max_bits_per_min_cu_denom,
     };
 
     *vpic = (VAEncPictureParameterBufferHEVC) {
@@ -700,9 +726,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
         },
 
         .coded_buf = VA_INVALID_ID,
-
-        .collocated_ref_pic_index = sps->sps_temporal_mvp_enabled_flag ?
-                                    0 : 0xff,
+        .collocated_ref_pic_index = 0xff,
         .last_picture = 0,
 
         .pic_init_qp            = pps->init_qp_minus26 + 26,
@@ -722,7 +746,7 @@ static int vaapi_encode_h265_init_sequence_params(AVCodecContext *avctx)
             pps->num_ref_idx_l1_default_active_minus1,
 
         .slice_pic_parameter_set_id = pps->pps_pic_parameter_set_id,
-
+        .hierarchical_level_plus1 = 1,
         .pic_fields.bits = {
             .sign_data_hiding_enabled_flag  = pps->sign_data_hiding_enabled_flag,
             .constrained_intra_pred_flag    = pps->constrained_intra_pred_flag,
@@ -1006,6 +1030,9 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
     sh->slice_pic_order_cnt_lsb = hpic->pic_order_cnt &
         (1 << (sps->log2_max_pic_order_cnt_lsb_minus4 + 4)) - 1;
 
+    sh->slice_loop_filter_across_slices_enabled_flag = 0;
+    sh->slice_temporal_mvp_enabled_flag = 1;
+
     if (pic->type != PICTURE_TYPE_IDR) {
         H265RawSTRefPicSet *rps;
         const VAAPIEncodeH265Picture *strp;
@@ -1121,6 +1148,7 @@ static int vaapi_encode_h265_init_slice_params(AVCodecContext *avctx,
         sh->slice_qp_delta = priv->fixed_qp_idr - (pps->init_qp_minus26 + 26);
 
 
+sh->slice_qp_delta = 0;
     *vslice = (VAEncSliceParameterBufferHEVC) {
         .slice_segment_address = sh->slice_segment_address,
         .num_ctu_in_slice      = slice->block_size,
