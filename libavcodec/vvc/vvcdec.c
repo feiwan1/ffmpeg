@@ -29,6 +29,7 @@
 #include "libavutil/cpu.h"
 #include "libavutil/thread.h"
 
+#include "config_components.h"
 #include "vvcdec.h"
 #include "vvc_ctu.h"
 #include "vvc_data.h"
@@ -724,14 +725,20 @@ static int slice_start(SliceContext *sc, VVCContext *s, VVCFrameContext *fc,
 
 static enum AVPixelFormat get_format(AVCodecContext *avctx, const VVCSPS *sps)
 {
-#define HWACCEL_MAX 0
+#define HWACCEL_MAX CONFIG_VVC_VAAPI_HWACCEL
 
     enum AVPixelFormat pix_fmts[HWACCEL_MAX + 2], *fmt = pix_fmts;
 
     switch (sps->pix_fmt) {
     case AV_PIX_FMT_YUV420P:
+#if CONFIG_VVC_VAAPI_HWACCEL
+        *fmt++ = AV_PIX_FMT_VAAPI;
+#endif
         break;
     case AV_PIX_FMT_YUV420P10:
+#if CONFIG_VVC_VAAPI_HWACCEL
+        *fmt++ = AV_PIX_FMT_VAAPI;
+#endif
         break;
     }
 
@@ -929,7 +936,7 @@ static int submit_frame(VVCContext *s, VVCFrameContext *fc, AVFrame *output, int
     int ret;
 
     if (s->avctx->hwaccel) {
-        if (fc->ref && (ret = FF_HW_SIMPLE_CALL(s->avctx, end_frame)) < 0) {
+        if (ret = FF_HW_SIMPLE_CALL(s->avctx, end_frame) < 0) {
             av_log(s->avctx, AV_LOG_ERROR,
                    "Hardware accelerator failed to decode picture\n");
             ff_vvc_unref_frame(fc, fc->ref, ~0);
@@ -1100,4 +1107,10 @@ const FFCodec ff_vvc_decoder = {
     .caps_internal  = FF_CODEC_CAP_EXPORTS_CROPPING | FF_CODEC_CAP_INIT_CLEANUP |
                       FF_CODEC_CAP_AUTO_THREADS,
     .p.profiles     = NULL_IF_CONFIG_SMALL(ff_vvc_profiles),
+    .hw_configs     = (const AVCodecHWConfigInternal *const []) {
+#if CONFIG_VVC_VAAPI_HWACCEL
+                    HWACCEL_VAAPI(vvc),
+#endif
+    NULL
+    },
 };
