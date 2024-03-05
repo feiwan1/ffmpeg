@@ -200,6 +200,9 @@ static const enum AVPixelFormat pix_fmts[] = {
     AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV422P,
     AV_PIX_FMT_YUV444P, AV_PIX_FMT_YUV410P, AV_PIX_FMT_YUV411P,
     AV_PIX_FMT_NV12,
+#if !HAVE_WINDOWS_H && CONFIG_VAAPI
+    AV_PIX_FMT_VAAPI,
+#endif
     AV_PIX_FMT_NONE
 };
 
@@ -294,6 +297,31 @@ static av_cold void dnn_classify_uninit(AVFilterContext *context)
     free_classify_labels(ctx);
 }
 
+static int config_output(AVFilterLink *outlink)
+{
+    AVFilterContext *context = outlink->src;
+    AVFilterLink *inlink = context->inputs[0];
+    DnnClassifyContext *classify_ctx = context->priv;
+    if (inlink->hw_frames_ctx) {
+        if (inlink->format == AV_PIX_FMT_VAAPI &&
+            classify_ctx->dnnctx.backend_type == DNN_OV)
+            outlink->hw_frames_ctx = av_buffer_ref(inlink->hw_frames_ctx);
+        else {
+            av_log(classify_ctx, AV_LOG_ERROR, "The dnn_backend doesn't support this pixel format\n");
+            return AVERROR_PATCHWELCOME;
+        }
+    }
+    return 0;
+}
+
+static const AVFilterPad dnn_classify_outputs[] = {
+    {
+        .name         = "default",
+        .type         = AVMEDIA_TYPE_VIDEO,
+        .config_props = config_output,
+    },
+};
+
 const AVFilter ff_vf_dnn_classify = {
     .name          = "dnn_classify",
     .description   = NULL_IF_CONFIG_SMALL("Apply DNN classify filter to the input."),
@@ -302,8 +330,9 @@ const AVFilter ff_vf_dnn_classify = {
     .init          = dnn_classify_init,
     .uninit        = dnn_classify_uninit,
     FILTER_INPUTS(ff_video_default_filterpad),
-    FILTER_OUTPUTS(ff_video_default_filterpad),
+    FILTER_OUTPUTS(dnn_classify_outputs),
     FILTER_PIXFMTS_ARRAY(pix_fmts),
     .priv_class    = &dnn_classify_class,
     .activate      = dnn_classify_activate,
+    .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 };
