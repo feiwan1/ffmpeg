@@ -318,7 +318,7 @@ static int vaapi_vvc_start_frame(AVCodecContext          *avctx,
 
             for (j = 0; j < 25; j++) {
                 for (k = 0; k < 12; k++) {
-                    alf_param.filtCoeff[j][k]         = alf->alf_luma_coeff_abs[j][k] * (1 - 2 * alf->alf_luma_coeff_sign[j][k]);
+                    alf_param.AlfCoeffL[j][k]         = alf->alf_luma_coeff_abs[j][k] * (1 - 2 * alf->alf_luma_coeff_sign[j][k]);
                     alf_param.alf_luma_clip_idx[j][k] = alf->alf_luma_clip_idx[j][k];
                 }
             }
