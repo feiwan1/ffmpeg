@@ -455,9 +455,7 @@ static const struct {
     MAP(AV1,         AV1_MAIN,        AV1Profile0),
     MAP(AV1,         AV1_HIGH,        AV1Profile1),
 #endif
-#if VA_CHECK_VERSION(1, 22, 0)
     MAP(H266,        VVC_MAIN_10,     VVCMain10),
-#endif
 
 #undef MAP
 };
