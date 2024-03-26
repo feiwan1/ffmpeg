@@ -535,8 +535,8 @@ static int vaapi_vvc_decode_slice(AVCodecContext *avctx,
         .sh_alf_aps_id_chroma            = sh->sh_alf_aps_id_chroma,
         .sh_alf_cc_cb_aps_id             = sh->sh_alf_cc_cb_aps_id,
         .sh_alf_cc_cr_aps_id             = sh->sh_alf_cc_cr_aps_id,
-        .NumRefIdxActive[0]              = sh->num_ref_idx_active[0],
-        .NumRefIdxActive[1]              = sh->num_ref_idx_active[1],
+        .NumRefIdxActive[0]              = sh->num_ref_idx_active[0] - 1,
+        .NumRefIdxActive[1]              = sh->num_ref_idx_active[1] - 1,
         .sh_collocated_ref_idx           = sh->sh_collocated_ref_idx,
         .SliceQpY                        = pps->pps_qp_delta_info_in_ph_flag ?
                                            26 + pps->pps_init_qp_minus26 + ph->ph_qp_delta :
