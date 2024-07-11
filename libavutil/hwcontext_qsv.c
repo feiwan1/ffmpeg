@@ -236,7 +236,7 @@ static uint32_t qsv_get_d3d11va_bind_flags(int mem_type)
         bind_flags = D3D11_BIND_DECODER;
 
     if ((MFX_MEMTYPE_FROM_VPPOUT & mem_type) || (MFX_MEMTYPE_VIDEO_MEMORY_PROCESSOR_TARGET & mem_type))
-        bind_flags = D3D11_BIND_RENDER_TARGET;
+        bind_flags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
     return bind_flags;
 }
