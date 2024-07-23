@@ -191,6 +191,9 @@ static const AVOption options[] = {
     { "tile_cols",  "Number of columns for tiled encoding",   OFFSET(qsv.tile_cols),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE },
     { "tile_rows",  "Number of rows for tiled encoding",      OFFSET(qsv.tile_rows),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, UINT16_MAX, VE },
     { "look_ahead_depth", "Depth of look ahead in number frames, available when extbrc option is enabled", OFFSET(qsv.look_ahead_depth), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 100, VE },
+#if QSV_HAVE_EXT_AV1_SCC
+    { "scc", "Enable Screen Content Tool for encodeing", OFFSET(qsv.scc), AV_OPT_TYPE_BOOL, { .i64 = 0}, 0, 1, VE},
+#endif
     { NULL },
 };
 

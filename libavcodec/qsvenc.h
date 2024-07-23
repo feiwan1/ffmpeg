@@ -40,6 +40,7 @@
 
 #define QSV_HAVE_EXT_VP9_TILES QSV_VERSION_ATLEAST(1, 29)
 #define QSV_HAVE_EXT_AV1_PARAM QSV_VERSION_ATLEAST(2, 5)
+#define QSV_HAVE_EXT_AV1_SCC   QSV_VERSION_ATLEAST(2, 13)
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define QSV_HAVE_AVBR   1
@@ -195,10 +196,14 @@ typedef struct QSVEncContext {
 #if QSV_HAVE_AC
     mfxExtAlphaChannelEncCtrl extaplhachannelparam;
 #endif
+#if QSV_HAVE_EXT_AV1_SCC
+    mfxExtAV1ScreenContentTools extsccparam;
+#endif
 
     mfxExtVideoSignalInfo extvsi;
 
-    mfxExtBuffer  *extparam_internal[5 + (QSV_HAVE_MF * 2) + (QSV_HAVE_EXT_AV1_PARAM * 2) + QSV_HAVE_HE + QSV_HAVE_AC];
+    mfxExtBuffer  *extparam_internal[5 + (QSV_HAVE_MF * 2) + (QSV_HAVE_EXT_AV1_PARAM * 2) +
+                                     QSV_HAVE_HE + QSV_HAVE_AC + QSV_HAVE_EXT_AV1_SCC];
     int         nb_extparam_internal;
 
     mfxExtBuffer  **extparam_str;
@@ -328,6 +333,7 @@ typedef struct QSVEncContext {
 
     AVDictionary *qsv_params;
     int alpha_encode;
+    int scc;
 } QSVEncContext;
 
 int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
