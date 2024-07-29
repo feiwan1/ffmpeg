@@ -1397,7 +1397,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
 
 #if QSV_HAVE_EXT_AV1_SCC
     if (q->scc) {
-        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 10)) {
             if (q->param.mfx.CodecId != MFX_CODEC_AV1) {
                 av_log(avctx, AV_LOG_ERROR, "Not supported encoder for Screen Content Tool Encode. "
                                             "Supported: av1_qsv \n");
@@ -1419,7 +1419,7 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
 
 #if QSV_HAVE_EXT_MSE
     if (q->mse) {
-        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 10)) {
             q->extmseparam.Header.BufferId = MFX_EXTBUFF_ENCODED_QUALITY_INFO_MODE;
             q->extmseparam.Header.BufferSz = sizeof(q->extmseparam);
             q->extmseparam.QualityInfoMode = MFX_QUALITY_INFO_LEVEL_FRAME;
@@ -1689,7 +1689,7 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
 #endif
 
 #if QSV_HAVE_EXT_MSE
-    if (q->mse && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+    if (q->mse && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 10)) {
         q->extmse_idx = ext_buf_num;
         ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&mse_buf;
     }
