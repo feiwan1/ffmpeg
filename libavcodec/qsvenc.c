@@ -2923,12 +2923,12 @@ int ff_qsv_encode(AVCodecContext *avctx, QSVEncContext *q,
             mfxExtQualityInfoOutput *mse;
             enc_buf = qpkt.bs->ExtParam[qpkt.mse_buf_idx];
             mse = (mfxExtQualityInfoOutput *)enc_buf;
-            av_log(avctx, AV_LOG_VERBOSE, "Frame Display order:%d, MSE Y/U/V: %d/%d/%d, "
+            av_log(avctx, AV_LOG_VERBOSE, "Frame Display order:%d, MSE Y/U/V: %0.2f/%0.2f/%0.2f, "
                    "PSNR Y/U/V: %0.2f/%0.2f/%0.2f\n",
-                   mse->FrameOrder, mse->MSE[0], mse->MSE[1],mse->MSE[2],
-                   10.0 * log10(pow(((1 << desc->comp[0].depth) -1), 2) / mse->MSE[0]),
-                   10.0 * log10(pow(((1 << desc->comp[1].depth) -1), 2) / mse->MSE[1]),
-                   10.0 * log10(pow(((1 << desc->comp[2].depth) -1), 2) / mse->MSE[2]));
+                   mse->FrameOrder, mse->MSE[0] / 256.0, mse->MSE[1] / 256.0, mse->MSE[2] / 256.0,
+                   10.0 * log10(pow(((1 << desc->comp[0].depth) -1), 2) / (mse->MSE[0] / 256.0)),
+                   10.0 * log10(pow(((1 << desc->comp[1].depth) -1), 2) / (mse->MSE[1] / 256.0)),
+                   10.0 * log10(pow(((1 << desc->comp[2].depth) -1), 2) / (mse->MSE[2] / 256.0)));
             av_freep(&mse);
         }
 #endif
