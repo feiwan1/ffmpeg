@@ -1273,7 +1273,8 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
 #if QSV_HAVE_SW
         if ((avctx->codec_id == AV_CODEC_ID_H264 || avctx->codec_id == AV_CODEC_ID_HEVC ||
             avctx->codec_id == AV_CODEC_ID_AV1) && q->sw_size) {
-            if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+            //if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+            if (1) {
                 q->extco3.WinBRCSize = q->sw_size;
                 q->extco3.WinBRCMaxAvgKbps = (int)(q->sw_max_bitrate_factor * q->param.mfx.TargetKbps);
             } else {
@@ -1411,7 +1412,8 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
 
 #if QSV_HAVE_AC
    if (q->alpha_encode) {
-        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+        // if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+        if (1) {
             mfxIMPL impl;
             MFXQueryIMPL(q->session, &impl);
 
@@ -1442,7 +1444,8 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
 
 #if QSV_HAVE_EXT_AV1_SCC
     if (q->palette_mode || q->intrabc) {
-        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+        // if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+        if (1) {
             if (q->param.mfx.CodecId != MFX_CODEC_AV1) {
                 av_log(avctx, AV_LOG_ERROR, "Not supported encoder for Screen Content Tool Encode. "
                                             "Supported: av1_qsv \n");
@@ -1464,7 +1467,8 @@ static int init_video_param(AVCodecContext *avctx, QSVEncContext *q)
 
 #if QSV_HAVE_EXT_MSE
     if (q->mse) {
-        if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+        // if (QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+        if (1) {
             q->extmseparam.Header.BufferId = MFX_EXTBUFF_ENCODED_QUALITY_INFO_MODE;
             q->extmseparam.Header.BufferSz = sizeof(q->extmseparam);
             q->extmseparam.QualityInfoMode = MFX_QUALITY_INFO_LEVEL_FRAME;
@@ -1731,14 +1735,16 @@ static int qsv_retrieve_enc_params(AVCodecContext *avctx, QSVEncContext *q)
 #endif
 
 #if QSV_HAVE_AC
-    if (q->alpha_encode && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+    // if (q->alpha_encode && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+    if (q->alpha_encode) {
         q->extaplhachannel_idx = ext_buf_num;
         ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&alpha_encode_buf;
     }
 #endif
 
 #if QSV_HAVE_EXT_MSE
-    if (q->mse && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+    // if (q->mse && QSV_RUNTIME_VERSION_ATLEAST(q->ver, 2, 13)) {
+    if (q->mse) {
         q->extmse_idx = ext_buf_num;
         ext_buffers[ext_buf_num++] = (mfxExtBuffer*)&mse_buf;
     }

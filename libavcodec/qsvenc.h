@@ -41,22 +41,30 @@
 
 #define QSV_HAVE_EXT_VP9_TILES QSV_VERSION_ATLEAST(1, 29)
 #define QSV_HAVE_EXT_AV1_PARAM QSV_VERSION_ATLEAST(2, 5)
-#define QSV_HAVE_EXT_AV1_SCC   QSV_VERSION_ATLEAST(2, 13)
-#define QSV_HAVE_EXT_MSE       QSV_VERSION_ATLEAST(2, 13)
+
+#ifndef QSV_HAVE_EXT_AV1_SCC
+#define QSV_HAVE_EXT_AV1_SCC 0
+#endif
+
+#ifndef QSV_HAVE_EXT_MSE
+#define QSV_HAVE_EXT_MSE 0
+#endif
+
+#ifndef QSV_HAVE_AC
+#define QSV_HAVE_AC 0
+#endif
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define QSV_HAVE_AVBR   1
 #define QSV_HAVE_VCM    1
 #define QSV_HAVE_MF     0
 #define QSV_HAVE_HE     QSV_VERSION_ATLEAST(2, 4)
-#define QSV_HAVE_AC     QSV_VERSION_ATLEAST(2, 13)
 #define QSV_HAVE_SW     1
 #else
 #define QSV_HAVE_AVBR   0
 #define QSV_HAVE_VCM    0
 #define QSV_HAVE_MF     !QSV_ONEVPL
 #define QSV_HAVE_HE     0
-#define QSV_HAVE_AC     0
 #define QSV_HAVE_SW     0
 #endif
 
