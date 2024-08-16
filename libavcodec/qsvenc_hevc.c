@@ -368,6 +368,9 @@ static const AVOption options[] = {
 #if QSV_ONEVPL
     { "main10sp", "This profile allow to encode 10 bit single still picture", OFFSET(qsv.main10sp), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE},
 #endif
+#if QSV_HAVE_AC
+    { "alpha_encode", "Encode with alpha channel", OFFSET(qsv.alpha_encode), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VE},
+#endif
     { NULL },
 };
 
