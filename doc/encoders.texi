@@ -4113,6 +4113,12 @@ by frame. Value: -1-default 0-off 1-on
 Set the allowed max size in bytes for each frame. If the frame size exceeds
 the limitation, encoder will adjust the QP value to control the frame size.
 Invalid in CQP rate control mode.
+
+@item @var{palette_mode}
+Use palette mode in Screen Content Tool.
+
+@item @var{intrabc}
+Use intra block copy in Screen Content Tool.
 @end table
 
 @section snow
