@@ -24,6 +24,7 @@
 #define AVCODEC_QSVENC_H
 
 #include <stdint.h>
+#include <float.h>
 #include <sys/types.h>
 
 #include <mfxvideo.h>
@@ -49,12 +50,14 @@
 #define QSV_HAVE_MF     0
 #define QSV_HAVE_HE     QSV_VERSION_ATLEAST(2, 4)
 #define QSV_HAVE_AC     QSV_VERSION_ATLEAST(2, 13)
+#define QSV_HAVE_SW     1
 #else
 #define QSV_HAVE_AVBR   0
 #define QSV_HAVE_VCM    0
 #define QSV_HAVE_MF     !QSV_ONEVPL
 #define QSV_HAVE_HE     0
 #define QSV_HAVE_AC     0
+#define QSV_HAVE_SW     0
 #endif
 
 #define QSV_COMMON_OPTS \
@@ -157,6 +160,12 @@
 #if QSV_HAVE_EXT_MSE
 #define QSV_MSE_OPTIONS \
 { "mse", "Enable output MSE(Mean Squared Error) of each frame", OFFSET(qsv.mse), AV_OPT_TYPE_BOOL, { .i64 = 0 }, 0, 1, VE },
+#endif
+
+#if QSV_HAVE_SW
+#define QSV_SW_OPTIONS \
+{ "sw_size", "Number of frames used for sliding window(Only available for CBR bitrate control mode)", OFFSET(qsv.sw_size), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX, VE },    \
+{ "sw_max_bitrate_factor", "Factor between bitrate and max bitrate for frames in sliding window(Only available when sw_size is set)", OFFSET(qsv.sw_max_bitrate_factor), AV_OPT_TYPE_FLOAT, { .i64 = 0 }, 0, FLT_MAX, VE },
 #endif
 
 extern const AVCodecHWConfigInternal *const ff_qsv_enc_hw_configs[];
@@ -349,6 +358,8 @@ typedef struct QSVEncContext {
     int palette_mode;
     int intrabc;
     int mse;
+    int sw_size;
+    float sw_max_bitrate_factor;
 } QSVEncContext;
 
 int ff_qsv_enc_init(AVCodecContext *avctx, QSVEncContext *q);
